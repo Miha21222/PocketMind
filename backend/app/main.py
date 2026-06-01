@@ -23,6 +23,11 @@ app.add_middleware(
 app.include_router(api_router)
 
 
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
 class SPAStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         try:
@@ -54,8 +59,3 @@ async def startup() -> None:
         # Keep local bootstrap simple; production should use Alembic migrations.
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-
-
-@app.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok"}
