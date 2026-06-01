@@ -11,9 +11,16 @@ def create_bot() -> Bot:
     return Bot(token=settings.bot_token)
 
 
-def create_dispatcher() -> Dispatcher:
+def _build_dispatcher() -> Dispatcher:
     dp = Dispatcher()
     dp.include_router(start.router)
     dp.include_router(help_handler.router)
     dp.include_router(callbacks.router)
     return dp
+
+
+_DISPATCHER = _build_dispatcher()
+
+
+def create_dispatcher() -> Dispatcher:
+    return _DISPATCHER
