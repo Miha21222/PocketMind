@@ -1,0 +1,29 @@
+name: PocketMind Reminder Cron
+
+on:
+  schedule:
+    - cron: "* * * * *"
+  workflow_dispatch:
+
+jobs:
+  trigger-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call reminder endpoint
+        env:
+          CRON_TRIGGER_URL: ${{ secrets.POCKETMIND_CRON_TRIGGER_URL }}
+          CRON_SECRET: ${{ secrets.POCKETMIND_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CRON_TRIGGER_URL}" ] || [ -z "${CRON_SECRET}" ]; then
+            echo "Missing GitHub secrets: POCKETMIND_CRON_TRIGGER_URL or POCKETMIND_CRON_SECRET"
+            exit 1
+          fi
+          status=$(curl -sS -o /tmp/cron-response.txt -w "%{http_code}" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${CRON_TRIGGER_URL}")
+          cat /tmp/cron-response.txt
+          if [ "${status}" -ge 400 ]; then
+            echo "Reminder trigger failed with status ${status}"
+            exit 1
+          fi

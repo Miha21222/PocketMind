@@ -1,0 +1,85 @@
+﻿from app.models.user import User
+from app.services.user_settings_service import normalize_language
+
+BOT_I18N: dict[str, dict[str, str]] = {
+    "en": {
+        "start_text": "Hi! I help you keep tasks organized and remind you on time.",
+        "help_text": "PocketMind reminders arrive in this chat. Use reminder buttons to complete or snooze tasks.",
+        "open_app": "Open Mini App",
+        "mini_app_disabled": "Mini App button is disabled: MINI_APP_URL must be HTTPS.\nCurrent MINI_APP_URL: {url}",
+        "mini_app_disabled_app": "Mini App button is disabled because MINI_APP_URL is not HTTPS.\nCurrent MINI_APP_URL: {url}\nUse an HTTPS URL (for example, your VPS domain or an HTTPS tunnel).",
+        "open_manager": "Open your task manager:",
+        "reminder_header": "⏰ PocketMind reminder",
+        "waiting_hint": "Still waiting for a reply? Choose an action below.",
+        "reminder_hint": "Choose an action below.",
+        "task": "Task",
+        "type": "Type",
+        "reminder_time": "Reminder time",
+        "followup_time": "Follow-up time",
+        "deadline": "Deadline",
+        "waiting_done": "Got reply",
+        "waiting_snooze": "Remind later",
+        "recurring_done": "Done for now",
+        "recurring_snooze": "Later",
+        "done": "Done",
+        "snooze": "Snooze {minutes} min",
+        "snooze_hour": "+1 hour",
+        "open": "Open",
+        "cb_invalid_action": "Invalid action",
+        "cb_invalid_task_id": "Invalid task id",
+        "cb_unknown_user": "Unknown user",
+        "cb_user_not_found": "User not found",
+        "cb_task_not_found": "Task not found",
+        "cb_task_closed": "Task already closed",
+        "cb_already_handled": "This reminder is already handled",
+        "cb_marked_done": "Marked as done",
+        "cb_snoozed": "Reminder moved by {minutes} minutes",
+        "cb_unknown_action": "Unknown action",
+    },
+    "ru": {
+        "start_text": "Привет! Я помогаю держать задачи под контролем и вовремя напоминаю о них.",
+        "help_text": "Напоминания PocketMind приходят в этот чат. Используйте кнопки в напоминании, чтобы завершить задачу или отложить её.",
+        "open_app": "Открыть Mini App",
+        "mini_app_disabled": "Кнопка Mini App отключена: MINI_APP_URL должен быть HTTPS.\nТекущий MINI_APP_URL: {url}",
+        "mini_app_disabled_app": "Кнопка Mini App отключена, потому что MINI_APP_URL не HTTPS.\nТекущий MINI_APP_URL: {url}\nИспользуйте HTTPS URL (например, домен на VPS или HTTPS-туннель).",
+        "open_manager": "Откройте менеджер задач:",
+        "reminder_header": "⏰ Напоминание PocketMind",
+        "waiting_hint": "Всё ещё ждёте ответ? Выберите действие ниже.",
+        "reminder_hint": "Выберите действие ниже.",
+        "task": "Задача",
+        "type": "Тип",
+        "reminder_time": "Время напоминания",
+        "followup_time": "Время фоллоу-апа",
+        "deadline": "Дедлайн",
+        "waiting_done": "Ответ получил",
+        "waiting_snooze": "Напомнить позже",
+        "recurring_done": "Сделано сейчас",
+        "recurring_snooze": "Позже",
+        "done": "Готово",
+        "snooze": "Отложить на {minutes} мин",
+        "snooze_hour": "+1 час",
+        "open": "Открыть",
+        "cb_invalid_action": "Некорректное действие",
+        "cb_invalid_task_id": "Некорректный id задачи",
+        "cb_unknown_user": "Неизвестный пользователь",
+        "cb_user_not_found": "Пользователь не найден",
+        "cb_task_not_found": "Задача не найдена",
+        "cb_task_closed": "Задача уже закрыта",
+        "cb_already_handled": "Это напоминание уже обработано",
+        "cb_marked_done": "Отмечено как выполнено",
+        "cb_snoozed": "Напоминание перенесено на {minutes} мин",
+        "cb_unknown_action": "Неизвестное действие",
+    },
+}
+
+
+def resolve_user_language(user: User | None, telegram_language_code: str | None = None) -> str:
+    preferred = user.preferred_language if user else None
+    fallback = telegram_language_code or (user.language_code if user else None)
+    return normalize_language(preferred or fallback)
+
+
+def t(lang: str, key: str, **kwargs) -> str:
+    table = BOT_I18N.get(lang, BOT_I18N["en"])
+    template = table.get(key, BOT_I18N["en"].get(key, key))
+    return template.format(**kwargs)
