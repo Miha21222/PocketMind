@@ -12,6 +12,14 @@ COPY backend/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt \
  && pip install --no-cache-dir supervisor
 
+# Bake the faster-whisper STT model into the image so the container stays
+# self-contained (no model download at runtime on the host). Use "small" for
+# better Russian accuracy at the cost of size/CPU: --build-arg WHISPER_MODEL=small
+ARG WHISPER_MODEL=base
+ENV WHISPER_MODEL=${WHISPER_MODEL}
+ENV WHISPER_DOWNLOAD_ROOT=/app/models
+RUN python -c "from faster_whisper import WhisperModel; WhisperModel('${WHISPER_MODEL}', device='cpu', compute_type='int8', download_root='/app/models')"
+
 COPY backend /app/backend
 
 # Normalize line endings (in case the script was checked out with CRLF on Windows)
