@@ -14,13 +14,13 @@ function toIsoOrNull(value: string): string | null {
 }
 
 export function TaskEditPage() {
-  const { t } = useAppSettings();
+  const { t, settings } = useAppSettings();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const params = useParams();
-  const taskId = Number(params.taskId);
-  const isValidTaskId = Number.isFinite(taskId);
+  const taskId = params.taskId ?? "";
+  const isValidTaskId = taskId.length > 0;
   const tasksAllQuery = useTasksAllQuery();
   const taskFromCache = (tasksAllQuery.data ?? []).find((task) => task.id === taskId);
   const shouldFetchFallback = isValidTaskId && !taskFromCache;
@@ -38,7 +38,7 @@ export function TaskEditPage() {
   }, [queryClient, taskFallbackQuery.data, taskFromCache]);
 
   const updateMutation = useMutation({
-    mutationFn: (body: Parameters<typeof updateTask>[1]) => updateTask(taskId, body),
+    mutationFn: (body: Parameters<typeof updateTask>[1]) => updateTask(taskId, body, settings),
     onSuccess: (updatedTask) => {
       updateTaskInCache(queryClient, updatedTask);
       scheduleTasksBackgroundRefresh(queryClient);

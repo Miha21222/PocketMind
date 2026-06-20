@@ -1,12 +1,14 @@
-import { QueryClient, useQuery } from "@tanstack/react-query";
-import { listTasks } from "../../api/tasks";
+import { QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { listTasks, syncTasksWithBackend } from "../../api/tasks";
 import { Task } from "../../types/task";
 
 export const TASKS_ALL_QUERY_KEY = ["tasks", "all"] as const;
 let tasksRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function useTasksAllQuery(enabled = true) {
-  return useQuery({
+  const queryClient = useQueryClient();
+  const tasksQuery = useQuery({
     queryKey: TASKS_ALL_QUERY_KEY,
     queryFn: async () => {
       const response = await listTasks({ view: "all" });
@@ -14,6 +16,25 @@ export function useTasksAllQuery(enabled = true) {
     },
     enabled,
   });
+  const syncQuery = useQuery({
+    queryKey: ["tasks", "sync"],
+    queryFn: syncTasksWithBackend,
+    enabled,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+  });
+
+  useEffect(() => {
+    if (syncQuery.data) {
+      queryClient.setQueryData<Task[]>(TASKS_ALL_QUERY_KEY, syncQuery.data);
+    }
+  }, [queryClient, syncQuery.data]);
+
+  return {
+    ...tasksQuery,
+    syncPending: syncQuery.isPending,
+    syncError: syncQuery.error,
+  };
 }
 
 export function updateTaskInCache(queryClient: QueryClient, task: Task) {

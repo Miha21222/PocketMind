@@ -13,7 +13,7 @@ const views = ["active", "completed", "cancelled"] as const;
 const typeFilters = ["all", "quick", "deadline", "no_deadline", "recurring", "waiting"] as const;
 
 export function TaskListPage() {
-  const { t } = useAppSettings();
+  const { t, settings } = useAppSettings();
   const { showToast } = useToast();
   const [view, setView] = useState<(typeof views)[number]>("active");
   const [taskType, setTaskType] = useState<(typeof typeFilters)[number]>("all");
@@ -21,7 +21,7 @@ export function TaskListPage() {
   const tasksAllQuery = useTasksAllQuery();
   const filteredTasks = applyTaskFilters(tasksAllQuery.data ?? [], view as TaskView, taskType as TaskType | "all");
   const doneMutation = useMutation({
-    mutationFn: markTaskDone,
+    mutationFn: (taskId: string) => markTaskDone(taskId, settings),
     onSuccess: (task) => {
       updateTaskInCache(queryClient, task);
       scheduleTasksBackgroundRefresh(queryClient);

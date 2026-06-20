@@ -64,6 +64,7 @@ async def send_task_reminder(db: AsyncSession, bot: Bot, task: Task, user: User)
             text=build_reminder_text(task, lang),
             reply_markup=reminder_keyboard(
                 task.id,
+                open_task_id=task.client_task_id,
                 waiting=task.type == TaskType.waiting,
                 recurring=task.type == TaskType.recurring,
                 lang=lang,

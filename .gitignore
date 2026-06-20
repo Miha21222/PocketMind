@@ -17,5 +17,7 @@ backend/.xdgdata/
 backend/.vercel/
 frontend/.vercel/
 .vercel-runtime-secrets.generated
+.tmp_sync_api_test.db
+frontend/.test-dist/
 
 .vercel

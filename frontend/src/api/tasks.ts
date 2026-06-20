@@ -1,4 +1,5 @@
-import { apiRequest } from "./client";
+import { createLocalTask, getLocalTask, listLocalTasks, updateStoredTask, markStoredTaskDone, cancelStoredTask, bootstrapTaskSync } from "../features/tasks/localTaskRepository";
+import { UserSettings } from "../types/settings";
 import { Task, TaskListResponse, TaskReminderMode, TaskType } from "../types/task";
 
 export interface TaskCreatePayload {
@@ -14,9 +15,9 @@ export interface TaskCreatePayload {
 }
 
 export interface TaskUpdatePayload {
-  title?: string;
+  title: string;
   description?: string | null;
-  type?: TaskType;
+  type: TaskType;
   deadline_at?: string | null;
   remind_at?: string | null;
   reminder_mode?: TaskReminderMode | null;
@@ -31,50 +32,43 @@ export interface TaskListFilters {
 }
 
 export function listTasks(filters: TaskListFilters = {}): Promise<TaskListResponse> {
-  const params = new URLSearchParams();
-  params.set("view", filters.view ?? "active");
-  if (filters.type && filters.type !== "all") {
-    params.set("type", filters.type);
-  }
-  return apiRequest<TaskListResponse>(`/tasks?${params.toString()}`);
+  void filters;
+  return listLocalTasks();
 }
 
-export function createTask(payload: TaskCreatePayload): Promise<Task> {
-  return apiRequest<Task>("/tasks", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export function createTask(payload: TaskCreatePayload, settings: UserSettings): Promise<Task> {
+  return createLocalTask(payload, settings);
 }
 
-export function getTask(taskId: number): Promise<Task> {
-  return apiRequest<Task>(`/tasks/${taskId}`);
+export function getTask(taskId: string): Promise<Task> {
+  return getLocalTask(taskId);
 }
 
-export function updateTask(taskId: number, payload: TaskUpdatePayload): Promise<Task> {
-  return apiRequest<Task>(`/tasks/${taskId}`, {
-    method: "PATCH",
-    body: JSON.stringify(payload),
-  });
+export function updateTask(taskId: string, payload: TaskUpdatePayload, settings: UserSettings): Promise<Task> {
+  return updateStoredTask(taskId, payload, settings);
 }
 
-export function markTaskDone(taskId: number): Promise<Task> {
-  return apiRequest<Task>(`/tasks/${taskId}/done`, { method: "POST" });
+export function markTaskDone(taskId: string, settings: UserSettings): Promise<Task> {
+  return markStoredTaskDone(taskId, settings);
 }
 
-export function snoozeTask(taskId: number, minutes: number): Promise<Task> {
-  return apiRequest<Task>(`/tasks/${taskId}/snooze`, {
-    method: "POST",
-    body: JSON.stringify({ minutes }),
-  });
+export function snoozeTask(taskId: string, minutes: number): Promise<Task> {
+  void taskId;
+  void minutes;
+  return Promise.reject(new Error("Snooze is handled from bot reminders"));
 }
 
-export function cancelTask(taskId: number): Promise<Task> {
-  return apiRequest<Task>(`/tasks/${taskId}/cancel`, { method: "POST" });
+export function cancelTask(taskId: string): Promise<Task> {
+  return cancelStoredTask(taskId);
 }
 
-export function rescheduleTask(taskId: number, remindAt: string | null, deadlineAt: string | null): Promise<Task> {
-  return apiRequest<Task>(`/tasks/${taskId}/reschedule`, {
-    method: "POST",
-    body: JSON.stringify({ remind_at: remindAt, deadline_at: deadlineAt }),
-  });
+export function rescheduleTask(taskId: string, remindAt: string | null, deadlineAt: string | null): Promise<Task> {
+  void taskId;
+  void remindAt;
+  void deadlineAt;
+  return Promise.reject(new Error("Reschedule is not exposed in the static local-first flow"));
+}
+
+export function syncTasksWithBackend(): Promise<Task[]> {
+  return bootstrapTaskSync();
 }

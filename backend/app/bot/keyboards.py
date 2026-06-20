@@ -27,13 +27,15 @@ def mini_app_keyboard(lang: str = "en") -> InlineKeyboardMarkup | None:
 
 def reminder_keyboard(
     task_id: int,
+    open_task_id: str | None = None,
     waiting: bool = False,
     recurring: bool = False,
     lang: str = "en",
     default_snooze_minutes: int = 15,
 ) -> InlineKeyboardMarkup:
     settings = get_settings()
-    task_url = f"{settings.mini_app_url.rstrip('/')}/tasks/{task_id}"
+    route_task_id = open_task_id or str(task_id)
+    task_url = f"{settings.mini_app_url.rstrip('/')}/tasks/{route_task_id}"
     can_open_task = is_valid_webapp_url(task_url)
     snooze_minutes = max(5, min(default_snooze_minutes, 240))
 

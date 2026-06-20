@@ -12,12 +12,12 @@ function toIsoOrNull(value: string): string | null {
 }
 
 export function TaskCreatePage() {
-  const { t } = useAppSettings();
+  const { t, settings } = useAppSettings();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const createMutation = useMutation({
-    mutationFn: createTask,
+    mutationFn: (payload: Parameters<typeof createTask>[0]) => createTask(payload, settings),
     onSuccess: (task) => {
       updateTaskInCache(queryClient, task);
       scheduleTasksBackgroundRefresh(queryClient);
