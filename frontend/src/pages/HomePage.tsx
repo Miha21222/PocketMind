@@ -13,8 +13,8 @@ type SectionProps = {
   title: string;
   tasks: Task[];
   icon: LucideIcon;
-  onDone: (taskId: number) => void;
-  onCancel: (taskId: number) => void;
+  onDone: (taskId: string) => void;
+  onCancel: (taskId: string) => void;
 };
 
 function Section({ title, tasks, icon: Icon, onDone, onCancel }: SectionProps) {
@@ -37,13 +37,13 @@ function Section({ title, tasks, icon: Icon, onDone, onCancel }: SectionProps) {
 }
 
 export function HomePage() {
-  const { t } = useAppSettings();
+  const { t, settings } = useAppSettings();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const tasksAllQuery = useTasksAllQuery();
   const allTasks = tasksAllQuery.data ?? [];
   const doneMutation = useMutation({
-    mutationFn: markTaskDone,
+    mutationFn: (taskId: string) => markTaskDone(taskId, settings),
     onSuccess: (task) => {
       updateTaskInCache(queryClient, task);
       scheduleTasksBackgroundRefresh(queryClient);
@@ -57,12 +57,12 @@ export function HomePage() {
     },
   });
 
-  const handleDone = (taskId: number) =>
+  const handleDone = (taskId: string) =>
     doneMutation.mutate(taskId, {
       onSuccess: () => showToast({ tone: "success", message: t("taskMarkedDone") }),
       onError: () => showToast({ tone: "error", message: t("taskActionFailed") }),
     });
-  const handleCancel = (taskId: number) =>
+  const handleCancel = (taskId: string) =>
     cancelMutation.mutate(taskId, {
       onSuccess: () => showToast({ tone: "success", message: t("taskCancelledMsg") }),
       onError: () => showToast({ tone: "error", message: t("taskActionFailed") }),

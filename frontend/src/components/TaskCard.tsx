@@ -5,8 +5,8 @@ import { formatInTimezone } from "../utils/dateTime";
 
 type TaskCardProps = {
   task: Task;
-  onDone: (taskId: number) => void;
-  onCancel: (taskId: number) => void;
+  onDone: (taskId: string) => void;
+  onCancel: (taskId: string) => void;
 };
 
 export function TaskCard({ task, onDone, onCancel }: TaskCardProps) {

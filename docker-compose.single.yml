@@ -1,0 +1,39 @@
+# Self-contained single-container backend: API + bot + scheduler in one image.
+# Use for local testing and as the hosting shape for the whole backend.
+#
+#   docker compose -f docker-compose.single.yml up -d --build   # start
+#   docker compose -f docker-compose.single.yml logs -f          # watch all 3 processes
+#   docker compose -f docker-compose.single.yml down             # stop (data persists)
+#
+# Requires a .env file (copy from .env.example and fill BOT_TOKEN, JWT_SECRET, ...).
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pocketmind-backend:latest
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:////app/data/pocketmind.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - pocketmind_data:/app/data
+    restart: unless-stopped
+
+  # Cloudflare Tunnel connector: exposes the backend at your stable
+  # https://api.<your-domain> hostname configured in the Cloudflare dashboard.
+  # Set TUNNEL_TOKEN in .env (the long connector token, NOT the tunnel UUID).
+  # The public hostname's Service must point at http://backend:8000.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pocketmind_data:

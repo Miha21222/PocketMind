@@ -11,10 +11,7 @@ DATA_DIR = BASE_DIR / "data"
 class Settings(BaseSettings):
     bot_token: str = ""
     database_url: str = f"sqlite+aiosqlite:///{(DATA_DIR / 'pocketmind.db').as_posix()}"
-    app_base_url: str = "http://localhost:8000"
     mini_app_url: str = "http://localhost:5173"
-    telegram_webhook_secret: str = ""
-    cron_secret: str = ""
     jwt_secret: str = "change-me"
     jwt_expire_minutes: int = 60 * 24 * 7
     environment: str = "local"
