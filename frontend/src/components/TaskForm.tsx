@@ -1,8 +1,10 @@
 ﻿import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
+import { Loader2, Mic, Square } from "lucide-react";
 import { z } from "zod";
 import { useAppSettings } from "../contexts/AppSettingsContext";
+import { useVoiceInput } from "../hooks/useVoiceInput";
 import { TaskReminderMode, TaskType } from "../types/task";
 
 export interface TaskFormValues {
@@ -78,12 +80,16 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
     }),
     [settings.default_deadline_reminder_interval_hours, settings.default_deadline_reminder_mode, settings.default_deadline_reminder_time_local],
   );
-  const { register, handleSubmit, watch, formState, setValue } = useForm<TaskFormValues>({
+  const { register, handleSubmit, watch, formState, setValue, getValues } = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
     defaultValues: { ...formDefaults, ...initial },
   });
   const selectedType = watch("type");
   const selectedReminderMode = watch("reminder_mode");
+  const voice = useVoiceInput((text) => {
+    const current = getValues("title").trim();
+    setValue("title", current ? `${current} ${text}` : text, { shouldValidate: true });
+  }, settings.language);
   const prevTypeRef = useRef<TaskType | null>(null);
 
   useEffect(() => {
@@ -128,7 +134,28 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
     >
       <label>
         {t("title")}
-        <input {...register("title")} />
+        <div className="flex items-center gap-2">
+          <input className="flex-1" {...register("title")} />
+          <button
+            type="button"
+            className="voice-btn ghost"
+            onClick={voice.toggle}
+            disabled={voice.status === "transcribing"}
+            aria-label={t("voiceInput")}
+            title={t("voiceInput")}
+          >
+            {voice.status === "recording" ? (
+              <Square size={18} />
+            ) : voice.status === "transcribing" ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <Mic size={18} />
+            )}
+          </button>
+        </div>
+        {voice.status === "recording" ? <span className="field-hint">{t("voiceRecording")}</span> : null}
+        {voice.status === "transcribing" ? <span className="field-hint">{t("voiceTranscribing")}</span> : null}
+        {voice.error ? <span className="text-sm text-red-600">{t("voiceUnavailable")}</span> : null}
         {formState.errors.title ? <span className="text-sm text-red-600">{formState.errors.title.message}</span> : null}
       </label>
       <label>

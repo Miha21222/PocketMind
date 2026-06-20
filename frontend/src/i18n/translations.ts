@@ -80,7 +80,11 @@ export type TranslationKey =
   | "taskMarkedDone"
   | "taskActionFailed"
   | "taskCancelledMsg"
-  | "languageUpdated";
+  | "languageUpdated"
+  | "voiceInput"
+  | "voiceRecording"
+  | "voiceTranscribing"
+  | "voiceUnavailable";
 
 export const translations: Record<AppLanguage, Record<TranslationKey, string>> = {
   en: {
@@ -164,6 +168,10 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     taskActionFailed: "Task action failed",
     taskCancelledMsg: "Task cancelled",
     languageUpdated: "Language updated",
+    voiceInput: "Voice input",
+    voiceRecording: "Recording… tap to stop",
+    voiceTranscribing: "Transcribing…",
+    voiceUnavailable: "Microphone unavailable",
   },
   ru: {
     appTitle: "PocketMind",
@@ -246,5 +254,9 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     taskActionFailed: "Не удалось выполнить действие",
     taskCancelledMsg: "Задача отменена",
     languageUpdated: "Язык обновлён",
+    voiceInput: "Голосовой ввод",
+    voiceRecording: "Запись… нажмите, чтобы остановить",
+    voiceTranscribing: "Распознаю…",
+    voiceUnavailable: "Микрофон недоступен",
   },
 };
