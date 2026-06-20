@@ -4,8 +4,37 @@ import { useForm } from "react-hook-form";
 import { Loader2, Mic, Square } from "lucide-react";
 import { z } from "zod";
 import { useAppSettings } from "../contexts/AppSettingsContext";
-import { useVoiceInput } from "../hooks/useVoiceInput";
+import { useVoiceInput, type VoiceInput } from "../hooks/useVoiceInput";
 import { TaskReminderMode, TaskType } from "../types/task";
+
+function VoiceButton({
+  voice,
+  field,
+  onResult,
+  label,
+}: {
+  voice: VoiceInput;
+  field: string;
+  onResult: (text: string) => void;
+  label: string;
+}) {
+  const isActive = voice.activeField === field;
+  const recording = isActive && voice.status === "recording";
+  const transcribing = isActive && voice.status === "transcribing";
+  const busyElsewhere = voice.status !== "idle" && !isActive;
+  return (
+    <button
+      type="button"
+      className="voice-btn ghost"
+      onClick={() => voice.toggle(field, onResult)}
+      disabled={transcribing || busyElsewhere}
+      aria-label={label}
+      title={label}
+    >
+      {recording ? <Square size={18} /> : transcribing ? <Loader2 size={18} className="animate-spin" /> : <Mic size={18} />}
+    </button>
+  );
+}
 
 export interface TaskFormValues {
   title: string;
@@ -86,10 +115,11 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
   });
   const selectedType = watch("type");
   const selectedReminderMode = watch("reminder_mode");
-  const voice = useVoiceInput((text) => {
-    const current = getValues("title").trim();
-    setValue("title", current ? `${current} ${text}` : text, { shouldValidate: true });
-  }, settings.language);
+  const voice = useVoiceInput(settings.language);
+  const appendToField = (field: "title" | "description") => (text: string) => {
+    const current = getValues(field).trim();
+    setValue(field, current ? `${current} ${text}` : text, { shouldValidate: true });
+  };
   const prevTypeRef = useRef<TaskType | null>(null);
 
   useEffect(() => {
@@ -136,31 +166,21 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
         {t("title")}
         <div className="flex items-center gap-2">
           <input className="flex-1" {...register("title")} />
-          <button
-            type="button"
-            className="voice-btn ghost"
-            onClick={voice.toggle}
-            disabled={voice.status === "transcribing"}
-            aria-label={t("voiceInput")}
-            title={t("voiceInput")}
-          >
-            {voice.status === "recording" ? (
-              <Square size={18} />
-            ) : voice.status === "transcribing" ? (
-              <Loader2 size={18} className="animate-spin" />
-            ) : (
-              <Mic size={18} />
-            )}
-          </button>
+          <VoiceButton voice={voice} field="title" onResult={appendToField("title")} label={t("voiceInput")} />
         </div>
-        {voice.status === "recording" ? <span className="field-hint">{t("voiceRecording")}</span> : null}
-        {voice.status === "transcribing" ? <span className="field-hint">{t("voiceTranscribing")}</span> : null}
-        {voice.error ? <span className="text-sm text-red-600">{t("voiceUnavailable")}</span> : null}
+        {voice.activeField === "title" && voice.status === "recording" ? <span className="field-hint">{t("voiceRecording")}</span> : null}
+        {voice.activeField === "title" && voice.status === "transcribing" ? <span className="field-hint">{t("voiceTranscribing")}</span> : null}
         {formState.errors.title ? <span className="text-sm text-red-600">{formState.errors.title.message}</span> : null}
       </label>
       <label>
         {t("description")}
-        <textarea rows={4} {...register("description")} />
+        <div className="flex items-start gap-2">
+          <textarea className="flex-1" rows={4} {...register("description")} />
+          <VoiceButton voice={voice} field="description" onResult={appendToField("description")} label={t("voiceInput")} />
+        </div>
+        {voice.activeField === "description" && voice.status === "recording" ? <span className="field-hint">{t("voiceRecording")}</span> : null}
+        {voice.activeField === "description" && voice.status === "transcribing" ? <span className="field-hint">{t("voiceTranscribing")}</span> : null}
+        {voice.error ? <span className="text-sm text-red-600">{t("voiceUnavailable")}</span> : null}
         {formState.errors.description ? <span className="text-sm text-red-600">{formState.errors.description.message}</span> : null}
       </label>
       <label>
