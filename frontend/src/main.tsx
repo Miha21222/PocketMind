@@ -14,10 +14,14 @@ const queryClient = new QueryClient({
   },
 });
 
+// Vite injects the deploy sub-path as BASE_URL ("/PocketMind/" on Pages, "/" in dev).
+// React Router needs it as a basename so absolute routes resolve under that sub-path.
+const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter basename={routerBasename}>
         <App />
       </BrowserRouter>
     </QueryClientProvider>

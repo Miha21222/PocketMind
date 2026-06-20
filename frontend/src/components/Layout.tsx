@@ -13,7 +13,7 @@ export function Layout({ children }: PropsWithChildren) {
       <header className="app-header">
         <div className="header-top-row">
           <Link to="/" className="brand flex items-center gap-3">
-            <img src="/logo.png" alt="PocketMind" className="brand-logo h-14 w-14 rounded-2xl" />
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="PocketMind" className="brand-logo h-14 w-14 rounded-2xl" />
             <div>
               <div className="brand-title text-lg font-extrabold text-pmblue-700">{t("appTitle")}</div>
               <div className="brand-subtitle text-sm text-slate-500">{t("appSubtitle")}</div>
