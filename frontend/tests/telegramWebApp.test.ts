@@ -13,7 +13,6 @@ function buildWebApp(): TelegramWebAppControls & { calls: string[] } {
     ready: () => calls.push("ready"),
     expand: () => calls.push("expand"),
     isVersionAtLeast: (version) => version === "8.0",
-    requestFullscreen: () => calls.push("requestFullscreen"),
   };
 }
 
@@ -21,7 +20,7 @@ function buildWebApp(): TelegramWebAppControls & { calls: string[] } {
   const webApp = buildWebApp();
   initializeTelegramWebApp(webApp);
 
-  assertEqual(webApp.calls.join(","), "ready,expand,requestFullscreen");
+  assertEqual(webApp.calls.join(","), "ready,expand");
 }
 
 {
@@ -30,7 +29,6 @@ function buildWebApp(): TelegramWebAppControls & { calls: string[] } {
     ready: () => calls.push("ready"),
     expand: () => calls.push("expand"),
     isVersionAtLeast: () => false,
-    requestFullscreen: () => calls.push("requestFullscreen"),
   });
 
   assertEqual(calls.join(","), "ready,expand");
