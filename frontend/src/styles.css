@@ -368,6 +368,69 @@ button.ghost,
   }
 }
 
+/* "Open in Telegram" gate shown when launched outside Telegram */
+.tg-gate {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.tg-gate-card {
+  width: 100%;
+  max-width: 360px;
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  text-align: center;
+  padding: 32px 24px;
+  border-radius: 24px;
+  background: var(--pm-card);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.14);
+}
+
+.tg-gate-logo {
+  width: 84px;
+  height: 84px;
+  border-radius: 22px;
+}
+
+.tg-gate-title {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--pm-blue-700);
+}
+
+.tg-gate-subtitle {
+  margin: 0;
+  color: var(--pm-muted);
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.tg-gate-btn {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 24px;
+  border-radius: 14px;
+  background: var(--pm-blue-500);
+  color: #ffffff;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.tg-gate-redirect {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--pm-muted);
+  font-weight: 600;
+}
+
 .filter-row {
   display: flex;
   flex-wrap: wrap;

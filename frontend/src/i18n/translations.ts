@@ -86,7 +86,11 @@ export type TranslationKey =
   | "voiceTranscribing"
   | "voiceUnavailable"
   | "voiceTapToRecord"
-  | "voiceCancel";
+  | "voiceCancel"
+  | "openInTelegramTitle"
+  | "openInTelegramSubtitle"
+  | "openInTelegramButton"
+  | "openInTelegramRedirecting";
 
 export const translations: Record<AppLanguage, Record<TranslationKey, string>> = {
   en: {
@@ -176,6 +180,10 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     voiceUnavailable: "Microphone unavailable",
     voiceTapToRecord: "Tap to record",
     voiceCancel: "Cancel",
+    openInTelegramTitle: "Open in Telegram",
+    openInTelegramSubtitle: "PocketMind lives inside Telegram. Tap below to open the bot and launch the app.",
+    openInTelegramButton: "Open in Telegram",
+    openInTelegramRedirecting: "Redirecting to Telegram…",
   },
   ru: {
     appTitle: "PocketMind",
@@ -264,5 +272,9 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     voiceUnavailable: "Микрофон недоступен",
     voiceTapToRecord: "Нажмите, чтобы записать",
     voiceCancel: "Отмена",
+    openInTelegramTitle: "Откройте в Telegram",
+    openInTelegramSubtitle: "PocketMind работает внутри Telegram. Нажмите кнопку, чтобы открыть бота и запустить приложение.",
+    openInTelegramButton: "Открыть в Telegram",
+    openInTelegramRedirecting: "Перенаправляем в Telegram…",
   },
 };
