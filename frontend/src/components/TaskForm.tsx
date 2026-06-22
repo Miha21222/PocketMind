@@ -1,38 +1,71 @@
 ﻿import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Loader2, Mic, Square } from "lucide-react";
 import { z } from "zod";
 import { useAppSettings } from "../contexts/AppSettingsContext";
 import { useVoiceInput, type VoiceInput } from "../hooks/useVoiceInput";
+import { TranslationKey } from "../i18n/translations";
 import { TaskReminderMode, TaskType } from "../types/task";
 
-function VoiceButton({
+function VoiceRecorderModal({
   voice,
-  field,
-  onResult,
-  label,
+  t,
+  onInsert,
+  onClose,
 }: {
   voice: VoiceInput;
-  field: string;
-  onResult: (text: string) => void;
-  label: string;
+  t: (key: TranslationKey) => string;
+  onInsert: (text: string) => void;
+  onClose: () => void;
 }) {
-  const isActive = voice.activeField === field;
-  const recording = isActive && voice.status === "recording";
-  const transcribing = isActive && voice.status === "transcribing";
-  const busyElsewhere = voice.status !== "idle" && !isActive;
+  const recording = voice.status === "recording";
+  const transcribing = voice.status === "transcribing";
+
+  const handleClose = () => {
+    voice.cancel();
+    onClose();
+  };
+
+  const handleToggle = () => {
+    if (recording) {
+      voice.stop();
+    } else if (voice.status === "idle") {
+      voice.start((text) => {
+        const trimmed = text.trim();
+        if (trimmed) onInsert(trimmed);
+        onClose();
+      });
+    }
+  };
+
+  const statusText = voice.error
+    ? t("voiceUnavailable")
+    : recording
+      ? t("voiceRecording")
+      : transcribing
+        ? t("voiceTranscribing")
+        : t("voiceTapToRecord");
+
   return (
-    <button
-      type="button"
-      className="voice-btn ghost"
-      onClick={() => voice.toggle(field, onResult)}
-      disabled={transcribing || busyElsewhere}
-      aria-label={label}
-      title={label}
-    >
-      {recording ? <Square size={18} /> : transcribing ? <Loader2 size={18} className="animate-spin" /> : <Mic size={18} />}
-    </button>
+    <div className="voice-modal-overlay" onClick={handleClose} role="presentation">
+      <div className="voice-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="voice-modal-title">{t("voiceInput")}</div>
+        <button
+          type="button"
+          className={`voice-record-btn${recording ? " is-recording" : ""}`}
+          onClick={handleToggle}
+          disabled={transcribing}
+          aria-label={recording ? t("voiceRecording") : t("voiceTapToRecord")}
+        >
+          {transcribing ? <Loader2 size={40} className="animate-spin" /> : recording ? <Square size={40} /> : <Mic size={40} />}
+        </button>
+        <div className="voice-modal-status">{statusText}</div>
+        <button type="button" className="ghost voice-modal-close" onClick={handleClose}>
+          {t("voiceCancel")}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -116,6 +149,7 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
   const selectedType = watch("type");
   const selectedReminderMode = watch("reminder_mode");
   const voice = useVoiceInput(settings.language);
+  const [voiceTarget, setVoiceTarget] = useState<"title" | "description" | null>(null);
   const appendToField = (field: "title" | "description") => (text: string) => {
     const current = getValues(field).trim();
     setValue(field, current ? `${current} ${text}` : text, { shouldValidate: true });
@@ -164,23 +198,34 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
     >
       <label>
         {t("title")}
-        <div className="flex items-center gap-2">
-          <input className="flex-1" {...register("title")} />
-          <VoiceButton voice={voice} field="title" onResult={appendToField("title")} label={t("voiceInput")} />
+        <div className="voice-field is-input">
+          <input {...register("title")} />
+          <button
+            type="button"
+            className="voice-mic"
+            onClick={() => setVoiceTarget("title")}
+            aria-label={t("voiceInput")}
+            title={t("voiceInput")}
+          >
+            <Mic size={18} />
+          </button>
         </div>
-        {voice.activeField === "title" && voice.status === "recording" ? <span className="field-hint">{t("voiceRecording")}</span> : null}
-        {voice.activeField === "title" && voice.status === "transcribing" ? <span className="field-hint">{t("voiceTranscribing")}</span> : null}
         {formState.errors.title ? <span className="text-sm text-red-600">{formState.errors.title.message}</span> : null}
       </label>
       <label>
         {t("description")}
-        <div className="flex items-start gap-2">
-          <textarea className="flex-1" rows={4} {...register("description")} />
-          <VoiceButton voice={voice} field="description" onResult={appendToField("description")} label={t("voiceInput")} />
+        <div className="voice-field">
+          <textarea rows={4} {...register("description")} />
+          <button
+            type="button"
+            className="voice-mic"
+            onClick={() => setVoiceTarget("description")}
+            aria-label={t("voiceInput")}
+            title={t("voiceInput")}
+          >
+            <Mic size={18} />
+          </button>
         </div>
-        {voice.activeField === "description" && voice.status === "recording" ? <span className="field-hint">{t("voiceRecording")}</span> : null}
-        {voice.activeField === "description" && voice.status === "transcribing" ? <span className="field-hint">{t("voiceTranscribing")}</span> : null}
-        {voice.error ? <span className="text-sm text-red-600">{t("voiceUnavailable")}</span> : null}
         {formState.errors.description ? <span className="text-sm text-red-600">{formState.errors.description.message}</span> : null}
       </label>
       <label>
@@ -268,6 +313,15 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
       <button type="submit" disabled={formState.isSubmitting}>
         {formState.isSubmitting ? t("saving") : t("saveTask")}
       </button>
+
+      {voiceTarget ? (
+        <VoiceRecorderModal
+          voice={voice}
+          t={t}
+          onInsert={appendToField(voiceTarget)}
+          onClose={() => setVoiceTarget(null)}
+        />
+      ) : null}
     </form>
   );
 }

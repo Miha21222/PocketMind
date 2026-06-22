@@ -270,6 +270,104 @@ button.ghost,
   font-weight: 600;
 }
 
+/* Voice input: mic tucked inside the field + recorder popup */
+.voice-field {
+  position: relative;
+}
+
+.voice-field input,
+.voice-field textarea {
+  padding-right: 46px;
+}
+
+.voice-mic {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: #e6f1fb;
+  color: var(--pm-blue-700);
+  border: 1px solid var(--pm-blue-700);
+}
+
+.voice-field.is-input .voice-mic {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.voice-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.voice-modal {
+  width: 100%;
+  max-width: 320px;
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+  text-align: center;
+  padding: 24px;
+  border-radius: 20px;
+  background: var(--pm-card);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+.voice-modal-title {
+  font-weight: 800;
+  font-size: 1.05rem;
+}
+
+.voice-modal-status {
+  min-height: 1.2em;
+  color: var(--pm-muted);
+  font-weight: 600;
+}
+
+.voice-record-btn {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  background: var(--pm-blue-700);
+  border: none;
+}
+
+.voice-record-btn.is-recording {
+  background: #d45a66;
+  animation: voice-pulse 1.3s ease-in-out infinite;
+}
+
+.voice-modal-close {
+  padding: 8px 18px;
+}
+
+@keyframes voice-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(212, 90, 102, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 16px rgba(212, 90, 102, 0);
+  }
+}
+
 .filter-row {
   display: flex;
   flex-wrap: wrap;
