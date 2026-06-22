@@ -1,23 +1,13 @@
 import { useEffect, useState } from "react";
 import { AuthUser, authWithTelegram } from "../api/auth";
 import { setAuthToken } from "../api/client";
+import { getTelegramWebApp } from "../telegramWebApp";
 
 interface AuthState {
   loading: boolean;
   error: string | null;
   authenticated: boolean;
   user: AuthUser | null;
-}
-
-declare global {
-  interface Window {
-    Telegram?: {
-      WebApp?: {
-        ready: () => void;
-        initData: string;
-      };
-    };
-  }
 }
 
 function getInitDataFromUrl(): string | null {
@@ -39,8 +29,7 @@ export function useTelegramAuth(): AuthState {
   useEffect(() => {
     const init = async () => {
       try {
-        const webApp = window.Telegram?.WebApp;
-        webApp?.ready();
+        const webApp = getTelegramWebApp();
         const initData =
           webApp?.initData ||
           getInitDataFromUrl() ||

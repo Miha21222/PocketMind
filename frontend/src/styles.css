@@ -19,11 +19,19 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+}
+
 body {
   margin: 0;
   color: var(--pm-text);
   background: radial-gradient(circle at top right, #d7f4e9 0%, var(--pm-bg) 45%, #f8fcff 100%);
   font-size: 17px;
+  overflow-x: hidden;
 }
 
 a {
@@ -32,10 +40,13 @@ a {
 }
 
 .app-shell {
+  width: 100%;
   max-width: 760px;
   margin: 0 auto;
   min-height: 100vh;
+  min-height: var(--tg-viewport-stable-height, 100vh);
   padding: 16px 16px 84px;
+  overflow-x: hidden;
 }
 
 .app-header {
@@ -58,6 +69,8 @@ a {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .brand-logo {
@@ -69,11 +82,13 @@ a {
 .brand-title {
   font-size: 1.3rem;
   font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .brand-subtitle {
   color: var(--pm-muted);
   font-size: 1rem;
+  overflow-wrap: anywhere;
 }
 
 .grid-section {
@@ -224,6 +239,7 @@ button.ghost,
   padding: 8px 10px;
   border-radius: 10px;
   font-weight: 800;
+  flex: 0 0 auto;
 }
 
 .success {

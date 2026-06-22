@@ -19,5 +19,6 @@ frontend/.vercel/
 .vercel-runtime-secrets.generated
 .tmp_sync_api_test.db
 frontend/.test-dist/
+.sofa/credentials.json
 
 .vercel
