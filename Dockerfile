@@ -8,6 +8,13 @@ ENV PYTHONUNBUFFERED=1
 # DATABASE_URL (e.g. a managed Postgres) for hosted deployments.
 ENV DATABASE_URL=sqlite+aiosqlite:////app/data/pocketmind.db
 
+# System tz database so Python's zoneinfo resolves modern IANA names
+# (e.g. Europe/Kyiv, not just the legacy Europe/Kiev). python:*-slim ships
+# without an up-to-date copy, which made saving such timezones 422.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends tzdata \
+ && rm -rf /var/lib/apt/lists/*
+
 COPY backend/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt \
  && pip install --no-cache-dir supervisor
