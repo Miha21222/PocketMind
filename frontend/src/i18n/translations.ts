@@ -84,7 +84,9 @@ export type TranslationKey =
   | "voiceInput"
   | "voiceRecording"
   | "voiceTranscribing"
-  | "voiceUnavailable";
+  | "voiceUnavailable"
+  | "voiceTapToRecord"
+  | "voiceCancel";
 
 export const translations: Record<AppLanguage, Record<TranslationKey, string>> = {
   en: {
@@ -172,6 +174,8 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     voiceRecording: "Recording… tap to stop",
     voiceTranscribing: "Transcribing…",
     voiceUnavailable: "Microphone unavailable",
+    voiceTapToRecord: "Tap to record",
+    voiceCancel: "Cancel",
   },
   ru: {
     appTitle: "PocketMind",
@@ -258,5 +262,7 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     voiceRecording: "Запись… нажмите, чтобы остановить",
     voiceTranscribing: "Распознаю…",
     voiceUnavailable: "Микрофон недоступен",
+    voiceTapToRecord: "Нажмите, чтобы записать",
+    voiceCancel: "Отмена",
   },
 };
