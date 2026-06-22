@@ -13,9 +13,30 @@ type AppSettingsContextValue = {
   timezoneOptions: string[];
 };
 
+const TIMEZONE_ALIASES: Record<string, string> = {
+  "Europe/Kiev": "Europe/Kyiv",
+  "Europe/Uzhgorod": "Europe/Kyiv",
+  "Europe/Zaporozhye": "Europe/Kyiv",
+  "Asia/Calcutta": "Asia/Kolkata",
+  "Asia/Saigon": "Asia/Ho_Chi_Minh",
+  "Asia/Rangoon": "Asia/Yangon",
+};
+
+// Auto-detect the user's IANA timezone, normalizing legacy aliases to the
+// canonical names returned by Intl.supportedValuesOf. Falls back to Europe/Kyiv.
+function detectTimezone(): string {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (!tz) return "Europe/Kyiv";
+    return TIMEZONE_ALIASES[tz] ?? tz;
+  } catch {
+    return "Europe/Kyiv";
+  }
+}
+
 const DEFAULT_SETTINGS: UserSettings = {
   language: "en",
-  timezone: "Europe/Kyiv",
+  timezone: detectTimezone(),
   default_snooze_minutes: 15,
   default_quick_delay_minutes: 10,
   default_deadline_reminder_mode: "daily_at_time",

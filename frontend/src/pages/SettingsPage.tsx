@@ -28,11 +28,10 @@ export function SettingsPage() {
     setDraft(settings);
   }, [settings]);
 
-  const visibleTimezones = useMemo(() => {
-    const query = draft.timezone.trim().toLowerCase();
-    if (!query) return timezoneOptions.slice(0, 80);
-    return timezoneOptions.filter((item) => item.toLowerCase().includes(query)).slice(0, 80);
-  }, [timezoneOptions, draft.timezone]);
+  const timezoneSelectOptions = useMemo(
+    () => (timezoneOptions.includes(draft.timezone) ? timezoneOptions : [draft.timezone, ...timezoneOptions]),
+    [timezoneOptions, draft.timezone],
+  );
 
   const handleSave = async () => {
     const patch = buildSettingsPatch(settings, draft);
@@ -87,16 +86,16 @@ export function SettingsPage() {
 
         <label>
           {t("timezone")}
-          <input
+          <select
             value={draft.timezone}
             onChange={(event) => setDraft((prev) => ({ ...prev, timezone: event.target.value }))}
-            list="timezone-options"
-          />
-          <datalist id="timezone-options">
-            {visibleTimezones.map((timezone) => (
-              <option key={timezone} value={timezone} />
+          >
+            {timezoneSelectOptions.map((timezone) => (
+              <option key={timezone} value={timezone}>
+                {timezone}
+              </option>
             ))}
-          </datalist>
+          </select>
         </label>
 
         <button type="button" disabled={isSaving} onClick={handleSave}>
