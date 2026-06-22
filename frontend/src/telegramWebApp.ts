@@ -3,7 +3,6 @@ export interface TelegramWebAppControls {
   isVersionAtLeast?: (version: string) => boolean;
   ready?: () => void;
   expand?: () => void;
-  requestFullscreen?: () => void;
 }
 
 interface TelegramWindow extends Window {
@@ -21,10 +20,4 @@ export function getTelegramWebApp(win?: Window): TelegramWebAppControls | undefi
 export function initializeTelegramWebApp(webApp: TelegramWebAppControls | undefined = getTelegramWebApp()): void {
   webApp?.ready?.();
   webApp?.expand?.();
-  if (!webApp?.isVersionAtLeast?.("8.0")) return;
-  try {
-    webApp?.requestFullscreen?.();
-  } catch {
-    // Some Telegram clients expose fullscreen but can reject it; expansion is enough.
-  }
 }
