@@ -20,6 +20,15 @@ ENV WHISPER_MODEL=${WHISPER_MODEL}
 ENV WHISPER_DOWNLOAD_ROOT=/app/models
 RUN python -c "from faster_whisper import WhisperModel; WhisperModel('${WHISPER_MODEL}', device='cpu', compute_type='int8', download_root='/app/models')"
 
+# Full system tz database so Python's zoneinfo resolves every IANA name:
+# tzdata provides canonical names (e.g. Europe/Kyiv) and tzdata-legacy the
+# backward-compat aliases (e.g. Europe/Kiev) that Debian split out. Browsers'
+# Intl returns either spelling depending on the runtime, so the backend must
+# accept both or saving the timezone 422s. After the model bake to keep cache.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends tzdata tzdata-legacy \
+ && rm -rf /var/lib/apt/lists/*
+
 COPY backend /app/backend
 
 # Normalize line endings (in case the script was checked out with CRLF on Windows)

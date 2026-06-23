@@ -37,6 +37,8 @@ def normalize_language(value: str | None) -> str:
     if not value:
         return "en"
     lowered = value.lower()
+    if lowered.startswith("uk"):
+        return "uk"
     if lowered.startswith("ru"):
         return "ru"
     return "en"

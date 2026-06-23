@@ -495,6 +495,23 @@ button.ghost,
   color: #6b86a1;
 }
 
+.filter-select {
+  width: 100%;
+  border: 1px solid #c9deef;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: inherit;
+  font-weight: 700;
+  color: var(--pm-blue-700);
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.filter-select:focus-visible {
+  outline: 2px solid var(--pm-blue-500);
+  outline-offset: 1px;
+}
+
 .chip {
   background: #dbe9f6;
   color: var(--pm-blue-700);

@@ -3,6 +3,9 @@ import { Link, NavLink } from "react-router-dom";
 import { House, Languages, ListTodo, PlusSquare, Settings as SettingsIcon } from "lucide-react";
 import { useAppSettings } from "../contexts/AppSettingsContext";
 import { useToast } from "../contexts/ToastContext";
+import { AppLanguage } from "../types/settings";
+
+const LANGUAGE_CYCLE: AppLanguage[] = ["en", "ru", "uk"];
 
 export function Layout({ children }: PropsWithChildren) {
   const { settings, setLanguage, t } = useAppSettings();
@@ -25,7 +28,8 @@ export function Layout({ children }: PropsWithChildren) {
             aria-label={t("language")}
             onClick={async () => {
               try {
-                await setLanguage(settings.language === "en" ? "ru" : "en");
+                const next = LANGUAGE_CYCLE[(LANGUAGE_CYCLE.indexOf(settings.language) + 1) % LANGUAGE_CYCLE.length];
+                await setLanguage(next);
                 showToast({ tone: "success", message: t("languageUpdated") });
               } catch {
                 showToast({ tone: "error", message: t("settingsSaveError") });

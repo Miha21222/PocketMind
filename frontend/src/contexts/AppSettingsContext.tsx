@@ -13,9 +13,30 @@ type AppSettingsContextValue = {
   timezoneOptions: string[];
 };
 
+const TIMEZONE_ALIASES: Record<string, string> = {
+  "Europe/Kiev": "Europe/Kyiv",
+  "Europe/Uzhgorod": "Europe/Kyiv",
+  "Europe/Zaporozhye": "Europe/Kyiv",
+  "Asia/Calcutta": "Asia/Kolkata",
+  "Asia/Saigon": "Asia/Ho_Chi_Minh",
+  "Asia/Rangoon": "Asia/Yangon",
+};
+
+// Auto-detect the user's IANA timezone, normalizing legacy aliases to the
+// canonical names returned by Intl.supportedValuesOf. Falls back to Europe/Kyiv.
+function detectTimezone(): string {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (!tz) return "Europe/Kyiv";
+    return TIMEZONE_ALIASES[tz] ?? tz;
+  } catch {
+    return "Europe/Kyiv";
+  }
+}
+
 const DEFAULT_SETTINGS: UserSettings = {
   language: "en",
-  timezone: "Europe/Kyiv",
+  timezone: detectTimezone(),
   default_snooze_minutes: 15,
   default_quick_delay_minutes: 10,
   default_deadline_reminder_mode: "daily_at_time",
@@ -29,26 +50,27 @@ const DEFAULT_SETTINGS: UserSettings = {
 
 const AppSettingsContext = createContext<AppSettingsContextValue | null>(null);
 
-function detectTimezoneOptions(): string[] {
-  const fallback = [
-    "Europe/Kyiv",
-    "Europe/Warsaw",
-    "Europe/London",
-    "UTC",
-    "America/New_York",
-    "America/Chicago",
-    "America/Los_Angeles",
-    "Asia/Tbilisi",
-  ];
-  const supportedValuesOf = (Intl as unknown as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf;
-  if (!supportedValuesOf) return fallback;
-  try {
-    const all = supportedValuesOf("timeZone");
-    return all.length > 0 ? all : fallback;
-  } catch {
-    return fallback;
-  }
-}
+// Curated short list of timezones for the picker (Europe + CIS/Caucasus
+// focus). The user's actual detected/saved zone is always prepended in the
+// Settings page, so picking an off-list zone still works.
+const COMMON_TIMEZONES = [
+  "UTC",
+  "Europe/Kyiv",
+  "Europe/Warsaw",
+  "Europe/Chisinau",
+  "Europe/Minsk",
+  "Europe/Moscow",
+  "Europe/Berlin",
+  "Europe/Paris",
+  "Europe/London",
+  "Europe/Athens",
+  "Europe/Istanbul",
+  "Asia/Tbilisi",
+  "Asia/Yerevan",
+  "Asia/Baku",
+  "Asia/Almaty",
+  "Asia/Tashkent",
+];
 
 type ProviderProps = {
   initialSettings?: UserSettings | null;
@@ -66,7 +88,7 @@ export function AppSettingsProvider({ children, initialSettings }: PropsWithChil
       setSettings({ ...DEFAULT_SETTINGS, ...settingsQuery.data });
     }
   }, [settingsQuery.data]);
-  const timezoneOptions = useMemo(() => detectTimezoneOptions(), []);
+  const timezoneOptions = COMMON_TIMEZONES;
   const updateMutation = useMutation({
     mutationFn: (patch: Partial<UserSettings>) =>
       updateMySettings({

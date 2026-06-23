@@ -35,6 +35,21 @@ export function TaskListPage() {
     },
   });
 
+  const statusLabel = (item: (typeof views)[number]) =>
+    item === "active" ? t("active") : item === "completed" ? t("completed") : t("cancelled");
+  const typeLabel = (item: (typeof typeFilters)[number]) =>
+    item === "all"
+      ? t("allTypes")
+      : item === "quick"
+        ? t("quick")
+        : item === "deadline"
+          ? t("deadline")
+          : item === "no_deadline"
+            ? t("noDeadline")
+            : item === "recurring"
+              ? t("recurring")
+              : t("waiting");
+
   return (
     <section className="grid-section">
       <div className="tasks-title-pill">{t("tasks")}</div>
@@ -42,34 +57,34 @@ export function TaskListPage() {
       <div className="filter-group-card">
         <p className="filter-group-title">{t("filterTasks")}</p>
         <div className="filter-subgroup">
-          <p className="filter-subgroup-title">{t("status")}</p>
-          <div className="filter-row">
+          <label className="filter-subgroup-title" htmlFor="filter-status">{t("status")}</label>
+          <select
+            id="filter-status"
+            className="filter-select"
+            value={view}
+            onChange={(event) => setView(event.target.value as (typeof views)[number])}
+          >
             {views.map((item) => (
-              <button key={item} className={item === view ? "chip active" : "chip"} onClick={() => setView(item)}>
-                {item === "active" ? t("active") : item === "completed" ? t("completed") : t("cancelled")}
-              </button>
+              <option key={item} value={item}>
+                {statusLabel(item)}
+              </option>
             ))}
-          </div>
+          </select>
         </div>
         <div className="filter-subgroup">
-          <p className="filter-subgroup-title">{t("type")}</p>
-          <div className="filter-row">
+          <label className="filter-subgroup-title" htmlFor="filter-type">{t("type")}</label>
+          <select
+            id="filter-type"
+            className="filter-select"
+            value={taskType}
+            onChange={(event) => setTaskType(event.target.value as (typeof typeFilters)[number])}
+          >
             {typeFilters.map((item) => (
-              <button key={item} className={item === taskType ? "chip active" : "chip"} onClick={() => setTaskType(item)}>
-                {item === "all"
-                  ? t("allTypes")
-                  : item === "quick"
-                    ? t("quick")
-                    : item === "deadline"
-                      ? t("deadline")
-                      : item === "no_deadline"
-                        ? t("noDeadline")
-                        : item === "recurring"
-                          ? t("recurring")
-                          : t("waiting")}
-              </button>
+              <option key={item} value={item}>
+                {typeLabel(item)}
+              </option>
             ))}
-          </div>
+          </select>
         </div>
       </div>
 

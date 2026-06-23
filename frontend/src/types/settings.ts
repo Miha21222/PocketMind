@@ -1,4 +1,4 @@
-export type AppLanguage = "en" | "ru";
+export type AppLanguage = "en" | "ru" | "uk";
 export type ReminderMode = "none" | "daily_at_time" | "every_n_hours";
 
 export interface UserSettings {
