@@ -50,6 +50,22 @@ const DEFAULT_SETTINGS: UserSettings = {
 
 const AppSettingsContext = createContext<AppSettingsContextValue | null>(null);
 
+// Collapse legacy aliases (e.g. Europe/Kiev) to their canonical name and drop
+// duplicates, so the picker shows one consistent spelling regardless of what
+// the runtime's Intl returns.
+function canonicalizeZones(zones: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const zone of zones) {
+    const canonical = TIMEZONE_ALIASES[zone] ?? zone;
+    if (!seen.has(canonical)) {
+      seen.add(canonical);
+      result.push(canonical);
+    }
+  }
+  return result;
+}
+
 function detectTimezoneOptions(): string[] {
   const fallback = [
     "Europe/Kyiv",
@@ -62,13 +78,16 @@ function detectTimezoneOptions(): string[] {
     "Asia/Tbilisi",
   ];
   const supportedValuesOf = (Intl as unknown as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf;
-  if (!supportedValuesOf) return fallback;
-  try {
-    const all = supportedValuesOf("timeZone");
-    return all.length > 0 ? all : fallback;
-  } catch {
-    return fallback;
+  let zones = fallback;
+  if (supportedValuesOf) {
+    try {
+      const all = supportedValuesOf("timeZone");
+      if (all.length > 0) zones = all;
+    } catch {
+      zones = fallback;
+    }
   }
+  return canonicalizeZones(zones);
 }
 
 type ProviderProps = {
