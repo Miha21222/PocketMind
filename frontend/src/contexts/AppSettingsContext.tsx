@@ -50,45 +50,27 @@ const DEFAULT_SETTINGS: UserSettings = {
 
 const AppSettingsContext = createContext<AppSettingsContextValue | null>(null);
 
-// Collapse legacy aliases (e.g. Europe/Kiev) to their canonical name and drop
-// duplicates, so the picker shows one consistent spelling regardless of what
-// the runtime's Intl returns.
-function canonicalizeZones(zones: string[]): string[] {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const zone of zones) {
-    const canonical = TIMEZONE_ALIASES[zone] ?? zone;
-    if (!seen.has(canonical)) {
-      seen.add(canonical);
-      result.push(canonical);
-    }
-  }
-  return result;
-}
-
-function detectTimezoneOptions(): string[] {
-  const fallback = [
-    "Europe/Kyiv",
-    "Europe/Warsaw",
-    "Europe/London",
-    "UTC",
-    "America/New_York",
-    "America/Chicago",
-    "America/Los_Angeles",
-    "Asia/Tbilisi",
-  ];
-  const supportedValuesOf = (Intl as unknown as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf;
-  let zones = fallback;
-  if (supportedValuesOf) {
-    try {
-      const all = supportedValuesOf("timeZone");
-      if (all.length > 0) zones = all;
-    } catch {
-      zones = fallback;
-    }
-  }
-  return canonicalizeZones(zones);
-}
+// Curated short list of timezones for the picker (Europe + CIS/Caucasus
+// focus). The user's actual detected/saved zone is always prepended in the
+// Settings page, so picking an off-list zone still works.
+const COMMON_TIMEZONES = [
+  "UTC",
+  "Europe/Kyiv",
+  "Europe/Warsaw",
+  "Europe/Chisinau",
+  "Europe/Minsk",
+  "Europe/Moscow",
+  "Europe/Berlin",
+  "Europe/Paris",
+  "Europe/London",
+  "Europe/Athens",
+  "Europe/Istanbul",
+  "Asia/Tbilisi",
+  "Asia/Yerevan",
+  "Asia/Baku",
+  "Asia/Almaty",
+  "Asia/Tashkent",
+];
 
 type ProviderProps = {
   initialSettings?: UserSettings | null;
@@ -106,7 +88,7 @@ export function AppSettingsProvider({ children, initialSettings }: PropsWithChil
       setSettings({ ...DEFAULT_SETTINGS, ...settingsQuery.data });
     }
   }, [settingsQuery.data]);
-  const timezoneOptions = useMemo(() => detectTimezoneOptions(), []);
+  const timezoneOptions = COMMON_TIMEZONES;
   const updateMutation = useMutation({
     mutationFn: (patch: Partial<UserSettings>) =>
       updateMySettings({
