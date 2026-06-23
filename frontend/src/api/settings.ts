@@ -2,7 +2,7 @@ import { apiRequest } from "./client";
 import { UserSettings } from "../types/settings";
 
 export interface SettingsUpdatePayload {
-  language?: "en" | "ru";
+  language?: "en" | "ru" | "uk";
   timezone?: string;
   default_snooze_minutes?: number;
   default_quick_delay_minutes?: number;

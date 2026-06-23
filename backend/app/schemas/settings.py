@@ -3,7 +3,7 @@ import re
 from pydantic import BaseModel, Field, field_validator
 
 
-SUPPORTED_LANGUAGES = {"en", "ru"}
+SUPPORTED_LANGUAGES = {"en", "ru", "uk"}
 SUPPORTED_REMINDER_MODES = {"none", "daily_at_time", "every_n_hours"}
 HHMM_PATTERN = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 

@@ -23,7 +23,8 @@ export default function App() {
 
   if (auth.loading) return <LoadingState label={text.authorizing} />;
   if (auth.error) {
-    const gateLang = (navigator.language || "en").toLowerCase().startsWith("ru") ? "ru" : "en";
+    const navLang = (navigator.language || "en").toLowerCase();
+    const gateLang = navLang.startsWith("uk") ? "uk" : navLang.startsWith("ru") ? "ru" : "en";
     const gt = translations[gateLang];
     const showTelegramGate = shouldShowTelegramGate({
       authError: auth.error,
