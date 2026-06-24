@@ -1,6 +1,7 @@
 import { TaskReminderMode, TaskType } from "../../types/task";
 
 export const TASK_CREATE_DRAFT_KEY = "pocketmind:create-task-draft:v1";
+export const TASK_CREATE_DRAFT_UPDATED_EVENT = "pocketmind:task-create-draft-updated";
 
 export interface TaskCreateDraftValues {
   title: string;
@@ -60,6 +61,22 @@ function readString(source: Record<string, unknown>, key: keyof TaskCreateDraftV
   return typeof value === "string" ? value : undefined;
 }
 
+function notifyTaskCreateDraftUpdated(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(TASK_CREATE_DRAFT_UPDATED_EVENT));
+}
+
+export function isTaskCreateDraftMeaningful(values: Partial<TaskCreateDraftValues> | undefined): boolean {
+  if (!values) return false;
+  return Boolean(
+    values.title?.trim() ||
+      values.description?.trim() ||
+      values.deadline_at?.trim() ||
+      values.recurrence_rule?.trim() ||
+      (values.type && values.type !== "quick"),
+  );
+}
+
 export function readTaskCreateDraft(storage = browserStorage()): Partial<TaskCreateDraftValues> | undefined {
   if (!storage) return undefined;
 
@@ -102,10 +119,20 @@ export function writeTaskCreateDraft(values: TaskCreateDraftValues, storage = br
   if (!storage) return;
 
   try {
+    if (!isTaskCreateDraftMeaningful(values)) {
+      storage.removeItem(TASK_CREATE_DRAFT_KEY);
+      notifyTaskCreateDraftUpdated();
+      return;
+    }
     storage.setItem(TASK_CREATE_DRAFT_KEY, JSON.stringify(values));
+    notifyTaskCreateDraftUpdated();
   } catch {
     // Draft persistence should never block task creation or editing.
   }
+}
+
+export function hasTaskCreateDraft(storage = browserStorage()): boolean {
+  return isTaskCreateDraftMeaningful(readTaskCreateDraft(storage));
 }
 
 export function clearTaskCreateDraft(storage = browserStorage()): void {
@@ -113,6 +140,7 @@ export function clearTaskCreateDraft(storage = browserStorage()): void {
 
   try {
     storage.removeItem(TASK_CREATE_DRAFT_KEY);
+    notifyTaskCreateDraftUpdated();
   } catch {
     // Ignore storage failures; the draft is a convenience layer.
   }

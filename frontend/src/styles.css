@@ -45,7 +45,7 @@ a {
   margin: 0 auto;
   min-height: 100vh;
   min-height: var(--tg-viewport-stable-height, 100vh);
-  padding: 16px 16px 150px;
+  padding: 16px 16px 172px;
   overflow-x: hidden;
 }
 
@@ -666,7 +666,7 @@ button.ghost,
   bottom: 0;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  padding: 10px 16px;
+  padding: 14px 16px;
   background: rgba(255, 255, 255, 0.95);
   border-top: 1px solid #d7e8f6;
 }
@@ -676,10 +676,11 @@ button.ghost,
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 10px;
-  border-radius: 12px;
+  min-height: 58px;
+  padding: 14px;
+  border-radius: 16px;
   color: var(--pm-muted);
-  font-size: 1.05rem;
+  font-size: 1.2rem;
   transition: transform 0.08s ease, filter 0.12s ease;
 }
 
@@ -695,20 +696,25 @@ button.ghost,
 
 .floating-create-btn {
   position: fixed;
-  right: max(18px, calc((100vw - 760px) / 2 + 18px));
-  bottom: 82px;
+  right: max(20px, calc((100vw - 760px) / 2 + 20px));
+  bottom: 104px;
   z-index: 50;
-  width: 58px;
-  height: 58px;
+  width: 72px;
+  height: 72px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 18px;
+  border-radius: 22px;
   background: linear-gradient(135deg, #3baa84 0%, #18865f 100%);
   color: #ffffff;
   box-shadow: 0 14px 30px rgba(24, 131, 99, 0.32);
   border: 1px solid rgba(255, 255, 255, 0.5);
   transition: transform 0.08s ease, filter 0.12s ease, box-shadow 0.12s ease;
+}
+
+.floating-create-btn.has-draft {
+  background: linear-gradient(135deg, #2f86dc 0%, #1e5ea8 100%);
+  box-shadow: 0 14px 30px rgba(30, 94, 168, 0.3);
 }
 
 .floating-create-btn:active {
@@ -858,6 +864,6 @@ button.ghost,
 
 @media (max-width: 640px) {
   .app-shell {
-    padding: 12px 12px 150px;
+    padding: 12px 12px 172px;
   }
 }

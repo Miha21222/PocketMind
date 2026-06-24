@@ -1,4 +1,4 @@
-import { clearTaskCreateDraft, readTaskCreateDraft, writeTaskCreateDraft } from "../src/features/tasks/taskCreateDraft";
+import { clearTaskCreateDraft, hasTaskCreateDraft, readTaskCreateDraft, writeTaskCreateDraft } from "../src/features/tasks/taskCreateDraft";
 
 class MemoryStorage implements Pick<Storage, "getItem" | "setItem" | "removeItem"> {
   private values = new Map<string, string>();
@@ -26,6 +26,22 @@ const storage = new MemoryStorage();
 
 writeTaskCreateDraft(
   {
+    title: "",
+    description: "",
+    type: "quick",
+    deadline_at: "",
+    recurrence_rule: "",
+    reminder_mode: "daily_at_time",
+    reminder_time_local: "09:00",
+    reminder_interval_hours: 4,
+  },
+  storage,
+);
+assertEqual(hasTaskCreateDraft(storage), false);
+assertEqual(readTaskCreateDraft(storage), undefined);
+
+writeTaskCreateDraft(
+  {
     title: "Draft title",
     description: "Draft description",
     type: "deadline",
@@ -39,6 +55,7 @@ writeTaskCreateDraft(
 );
 
 const draft = readTaskCreateDraft(storage);
+assertEqual(hasTaskCreateDraft(storage), true);
 assertEqual(draft?.title, "Draft title");
 assertEqual(draft?.type, "deadline");
 assertEqual(draft?.deadline_at, "2026-06-24T09:20");

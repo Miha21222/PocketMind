@@ -1,8 +1,9 @@
-import { PropsWithChildren } from "react";
+import { PropsWithChildren, useEffect, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
-import { House, Languages, ListTodo, PlusSquare, Settings as SettingsIcon } from "lucide-react";
+import { FileText, House, Languages, ListTodo, PlusSquare, Settings as SettingsIcon } from "lucide-react";
 import { useAppSettings } from "../contexts/AppSettingsContext";
 import { useToast } from "../contexts/ToastContext";
+import { hasTaskCreateDraft, TASK_CREATE_DRAFT_UPDATED_EVENT } from "../features/tasks/taskCreateDraft";
 import { TranslationKey } from "../i18n/translations";
 import { AppLanguage } from "../types/settings";
 
@@ -13,6 +14,19 @@ export function Layout({ children }: PropsWithChildren) {
   const { showToast } = useToast();
   const location = useLocation();
   const pageTitle = getPageTitle(location.pathname, t);
+  const [hasCreateDraft, setHasCreateDraft] = useState(() => hasTaskCreateDraft());
+  const isTaskCreatePage = location.pathname === "/tasks/new";
+  const FloatingCreateIcon = hasCreateDraft ? FileText : PlusSquare;
+
+  useEffect(() => {
+    setHasCreateDraft(hasTaskCreateDraft());
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const syncDraftState = () => setHasCreateDraft(hasTaskCreateDraft());
+    window.addEventListener(TASK_CREATE_DRAFT_UPDATED_EVENT, syncDraftState);
+    return () => window.removeEventListener(TASK_CREATE_DRAFT_UPDATED_EVENT, syncDraftState);
+  }, []);
 
   return (
     <div className="app-shell font-sans">
@@ -44,14 +58,16 @@ export function Layout({ children }: PropsWithChildren) {
 
       <main className="app-content">{children}</main>
 
-      <Link
-        to="/tasks/new"
-        className="floating-create-btn"
-        aria-label={t("newTask")}
-        title={t("newTask")}
-      >
-        <PlusSquare size={26} />
-      </Link>
+      {!isTaskCreatePage && (
+        <Link
+          to="/tasks/new"
+          className={`floating-create-btn${hasCreateDraft ? " has-draft" : ""}`}
+          aria-label={t("newTask")}
+          title={t("newTask")}
+        >
+          <FloatingCreateIcon size={34} />
+        </Link>
+      )}
 
       <nav className="bottom-nav">
         <NavLink
@@ -60,7 +76,7 @@ export function Layout({ children }: PropsWithChildren) {
           className={({ isActive }) => (isActive ? "active rounded-xl bg-pmgreen-200 text-emerald-800 font-extrabold" : "")}
           aria-label={t("home")}
         >
-          <House size={22} />
+          <House size={28} />
         </NavLink>
         <NavLink
           to="/tasks"
@@ -68,14 +84,14 @@ export function Layout({ children }: PropsWithChildren) {
           className={({ isActive }) => (isActive ? "active rounded-xl bg-pmgreen-200 text-emerald-800 font-extrabold" : "")}
           aria-label={t("tasks")}
         >
-          <ListTodo size={22} />
+          <ListTodo size={28} />
         </NavLink>
         <NavLink
           to="/settings"
           className={({ isActive }) => (isActive ? "active rounded-xl bg-pmgreen-200 text-emerald-800 font-extrabold" : "")}
           aria-label={t("settings")}
         >
-          <SettingsIcon size={22} />
+          <SettingsIcon size={28} />
         </NavLink>
       </nav>
     </div>
