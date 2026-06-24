@@ -45,7 +45,7 @@ a {
   margin: 0 auto;
   min-height: 100vh;
   min-height: var(--tg-viewport-stable-height, 100vh);
-  padding: 16px 16px 84px;
+  padding: 16px 16px 150px;
   overflow-x: hidden;
 }
 
@@ -665,7 +665,7 @@ button.ghost,
   right: 0;
   bottom: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   padding: 10px 16px;
   background: rgba(255, 255, 255, 0.95);
   border-top: 1px solid #d7e8f6;
@@ -691,6 +691,29 @@ button.ghost,
 
 .bottom-nav a:active {
   transform: translateY(1px) scale(0.97);
+}
+
+.floating-create-btn {
+  position: fixed;
+  right: max(18px, calc((100vw - 760px) / 2 + 18px));
+  bottom: 82px;
+  z-index: 50;
+  width: 58px;
+  height: 58px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #3baa84 0%, #18865f 100%);
+  color: #ffffff;
+  box-shadow: 0 14px 30px rgba(24, 131, 99, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  transition: transform 0.08s ease, filter 0.12s ease, box-shadow 0.12s ease;
+}
+
+.floating-create-btn:active {
+  transform: translateY(1px) scale(0.97);
+  filter: brightness(0.96);
 }
 
 .reschedule-box {
@@ -835,6 +858,6 @@ button.ghost,
 
 @media (max-width: 640px) {
   .app-shell {
-    padding: 12px 12px 84px;
+    padding: 12px 12px 150px;
   }
 }

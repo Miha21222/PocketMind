@@ -44,6 +44,15 @@ export function Layout({ children }: PropsWithChildren) {
 
       <main className="app-content">{children}</main>
 
+      <Link
+        to="/tasks/new"
+        className="floating-create-btn"
+        aria-label={t("newTask")}
+        title={t("newTask")}
+      >
+        <PlusSquare size={26} />
+      </Link>
+
       <nav className="bottom-nav">
         <NavLink
           to="/"
@@ -60,13 +69,6 @@ export function Layout({ children }: PropsWithChildren) {
           aria-label={t("tasks")}
         >
           <ListTodo size={22} />
-        </NavLink>
-        <NavLink
-          to="/tasks/new"
-          className={({ isActive }) => (isActive ? "active rounded-xl bg-pmgreen-200 text-emerald-800 font-extrabold" : "")}
-          aria-label={t("newTask")}
-        >
-          <PlusSquare size={22} />
         </NavLink>
         <NavLink
           to="/settings"

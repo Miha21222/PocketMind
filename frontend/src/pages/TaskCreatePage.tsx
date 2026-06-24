@@ -1,3 +1,4 @@
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createTask } from "../api/tasks";
@@ -5,6 +6,7 @@ import { TaskForm, TaskFormValues } from "../components/TaskForm";
 import { useAppSettings } from "../contexts/AppSettingsContext";
 import { useToast } from "../contexts/ToastContext";
 import { scheduleTasksBackgroundRefresh, updateTaskInCache } from "../features/tasks/cache";
+import { clearTaskCreateDraft, readTaskCreateDraft, writeTaskCreateDraft } from "../features/tasks/taskCreateDraft";
 import { fromLocalDateTimeInput } from "../utils/dateTime";
 
 function toIsoOrNull(value: string): string | null {
@@ -16,6 +18,7 @@ export function TaskCreatePage() {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [draftInitial] = useState(() => readTaskCreateDraft());
   const createMutation = useMutation({
     mutationFn: (payload: Parameters<typeof createTask>[0]) => createTask(payload, settings),
     onSuccess: (task) => {
@@ -39,17 +42,19 @@ export function TaskCreatePage() {
     };
     try {
       await createMutation.mutateAsync(payload);
+      clearTaskCreateDraft();
       showToast({ tone: "success", message: t("taskCreated") });
       navigate("/tasks");
     } catch {
       showToast({ tone: "error", message: t("failedCreateTask") });
     }
   };
+  const handleDraftChange = useCallback((values: TaskFormValues) => writeTaskCreateDraft(values), []);
 
   return (
     <section className="grid-section">
       {createMutation.error && <p className="error">{t("failedCreateTask")}</p>}
-      <TaskForm onSubmit={handleSubmit} />
+      <TaskForm initial={draftInitial} onSubmit={handleSubmit} onValuesChange={handleDraftChange} />
     </section>
   );
 }

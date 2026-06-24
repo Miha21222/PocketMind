@@ -84,6 +84,7 @@ export interface TaskFormValues {
 interface TaskFormProps {
   initial?: Partial<TaskFormValues>;
   onSubmit: (values: TaskFormValues) => Promise<void>;
+  onValuesChange?: (values: TaskFormValues) => void;
 }
 
 const taskFormSchema = z
@@ -128,7 +129,7 @@ const taskFormSchema = z
     }
   });
 
-export function TaskForm({ initial, onSubmit }: TaskFormProps) {
+export function TaskForm({ initial, onSubmit, onValuesChange }: TaskFormProps) {
   const { t, settings } = useAppSettings();
   const formDefaults = useMemo<TaskFormValues>(
     () => ({
@@ -157,6 +158,7 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
     ...descriptionInputProps
   } = descriptionField;
   const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
   const [descriptionRows, setDescriptionRows] = useState(4);
   const descriptionValue = watch("description");
 
@@ -177,6 +179,36 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
     setValue(field, current ? `${current} ${text}` : text, { shouldValidate: true });
   };
   const prevTypeRef = useRef<TaskType | null>(null);
+  const readCurrentFormValues = (): TaskFormValues => {
+    const current = getValues();
+    if (!formRef.current) return current;
+
+    const formData = new FormData(formRef.current);
+    const textValue = (key: keyof TaskFormValues) => String(formData.get(key) ?? current[key] ?? "");
+    const intervalValue = Number(formData.get("reminder_interval_hours"));
+
+    return {
+      ...current,
+      title: textValue("title"),
+      description: textValue("description"),
+      type: textValue("type") as TaskType,
+      deadline_at: textValue("deadline_at"),
+      recurrence_rule: textValue("recurrence_rule"),
+      reminder_mode: textValue("reminder_mode") as TaskReminderMode,
+      reminder_time_local: textValue("reminder_time_local"),
+      reminder_interval_hours: Number.isFinite(intervalValue) && intervalValue > 0 ? intervalValue : current.reminder_interval_hours,
+    };
+  };
+  const notifyValuesChange = () => {
+    if (!onValuesChange) return;
+    window.requestAnimationFrame(() => onValuesChange(readCurrentFormValues()));
+  };
+
+  useEffect(() => {
+    if (!onValuesChange) return undefined;
+    const subscription = watch(() => onValuesChange(getValues()));
+    return () => subscription.unsubscribe();
+  }, [getValues, onValuesChange, watch]);
 
   useEffect(() => {
     if (prevTypeRef.current === null) {
@@ -213,7 +245,10 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
 
   return (
     <form
+      ref={formRef}
       className="task-form rounded-soft bg-white p-4 shadow-card"
+      onInputCapture={notifyValuesChange}
+      onChangeCapture={notifyValuesChange}
       onSubmit={handleSubmit(async (values) => {
         await onSubmit(values);
       })}
