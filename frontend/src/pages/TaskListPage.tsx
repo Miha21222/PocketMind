@@ -34,8 +34,6 @@ export function TaskListPage() {
 
   return (
     <section className="grid-section">
-      <div className="tasks-title-pill">{t("tasks")}</div>
-
       <div className="filter-group-card">
         <div className="section-card-header">
           <span className="section-card-icon" aria-hidden="true">

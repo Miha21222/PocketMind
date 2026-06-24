@@ -49,7 +49,6 @@ export function HomePage() {
 
   return (
     <div className="grid-section home-grid">
-      <div className="tasks-title-pill">{t("dashboard")}</div>
       {sections.map((section) => (
         <Section
           key={section.view}

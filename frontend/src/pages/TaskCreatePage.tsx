@@ -48,7 +48,6 @@ export function TaskCreatePage() {
 
   return (
     <section className="grid-section">
-      <div className="tasks-title-pill">{t("createTask")}</div>
       {createMutation.error && <p className="error">{t("failedCreateTask")}</p>}
       <TaskForm onSubmit={handleSubmit} />
     </section>

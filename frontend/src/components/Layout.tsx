@@ -1,8 +1,9 @@
 import { PropsWithChildren } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { House, Languages, ListTodo, PlusSquare, Settings as SettingsIcon } from "lucide-react";
 import { useAppSettings } from "../contexts/AppSettingsContext";
 import { useToast } from "../contexts/ToastContext";
+import { TranslationKey } from "../i18n/translations";
 import { AppLanguage } from "../types/settings";
 
 const LANGUAGE_CYCLE: AppLanguage[] = ["en", "ru", "uk"];
@@ -10,18 +11,17 @@ const LANGUAGE_CYCLE: AppLanguage[] = ["en", "ru", "uk"];
 export function Layout({ children }: PropsWithChildren) {
   const { settings, setLanguage, t } = useAppSettings();
   const { showToast } = useToast();
+  const location = useLocation();
+  const pageTitle = getPageTitle(location.pathname, t);
 
   return (
     <div className="app-shell font-sans">
       <header className="app-header">
         <div className="header-top-row">
-          <Link to="/" className="brand flex items-center gap-3">
+          <Link to="/" className="header-logo-link" aria-label={t("home")}>
             <img src={`${import.meta.env.BASE_URL}logo.png`} alt="PocketMind" className="brand-logo h-14 w-14 rounded-2xl" />
-            <div>
-              <div className="brand-title text-lg font-extrabold text-pmblue-700">{t("appTitle")}</div>
-              <div className="brand-subtitle text-sm text-slate-500">{t("appSubtitle")}</div>
-            </div>
           </Link>
+          <h1 className="header-page-title">{pageTitle}</h1>
           <button
             type="button"
             className="lang-switch-btn ghost"
@@ -78,4 +78,12 @@ export function Layout({ children }: PropsWithChildren) {
       </nav>
     </div>
   );
+}
+
+function getPageTitle(pathname: string, t: (key: TranslationKey) => string): string {
+  if (pathname === "/tasks/new") return t("createTask");
+  if (/^\/tasks\/[^/]+\/edit$/.test(pathname)) return t("editTask");
+  if (pathname.startsWith("/tasks")) return t("tasks");
+  if (pathname === "/settings") return t("settings");
+  return t("dashboard");
 }

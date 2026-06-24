@@ -55,8 +55,6 @@ export function TaskDetailPage() {
 
   return (
     <section className="grid-section">
-      <div className="tasks-title-pill">{t("tasks")}</div>
-
       <article className="task-detail-card">
         <div className="section-card-header task-detail-header">
           <span className="section-card-icon" aria-hidden="true">

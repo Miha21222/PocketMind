@@ -83,7 +83,6 @@ export function TaskEditPage() {
 
   return (
     <section className="grid-section">
-      <div className="tasks-title-pill">{t("editTask")}</div>
       <TaskForm initial={initial} onSubmit={handleSubmit} />
     </section>
   );

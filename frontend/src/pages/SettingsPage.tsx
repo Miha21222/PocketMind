@@ -54,7 +54,6 @@ export function SettingsPage() {
 
   return (
     <section className="grid-section">
-      <div className="tasks-title-pill">{t("settings")}</div>
       <div className="task-form">
         <label>
           {t("defaultSnooze")}
