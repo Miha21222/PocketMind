@@ -9,6 +9,25 @@ import { TranslationKey } from "../i18n/translations";
 import { TaskReminderMode, TaskType } from "../types/task";
 import { estimateTextareaRows } from "./textareaAutosize";
 
+function toLocalDateTimeInputValue(date: Date): string {
+  const timezoneOffset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
+}
+
+function todayDatePart(): string {
+  return toLocalDateTimeInputValue(new Date()).slice(0, 10);
+}
+
+function buildTodayDeadlineDefault(): string {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() + 10, 0, 0);
+  return toLocalDateTimeInputValue(now);
+}
+
+function isTodayDeadline(value: string): boolean {
+  return value.slice(0, 10) === todayDatePart();
+}
+
 function VoiceRecorderModal({
   voice,
   t,
@@ -95,7 +114,7 @@ const taskFormSchema = z
     type: z.enum(["quick", "deadline", "no_deadline", "recurring", "waiting"]),
     deadline_at: z.string(),
     recurrence_rule: z.string(),
-    reminder_mode: z.enum(["none", "daily_at_time", "every_n_hours"]),
+    reminder_mode: z.enum(["none", "daily_at_time", "every_n_hours", "once_at_time"]),
     reminder_time_local: z.string(),
     reminder_interval_hours: z.number().int().min(1).max(24),
   })
@@ -114,7 +133,11 @@ const taskFormSchema = z
         path: ["deadline_at"],
       });
     }
-    if ((values.type === "deadline" || values.type === "waiting") && values.reminder_mode === "daily_at_time" && !values.reminder_time_local) {
+    if (
+      (values.type === "deadline" || values.type === "waiting") &&
+      (values.reminder_mode === "daily_at_time" || values.reminder_mode === "once_at_time") &&
+      !values.reminder_time_local
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Time is required",
@@ -151,7 +174,10 @@ export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFo
   });
   const selectedType = watch("type");
   const selectedReminderMode = watch("reminder_mode");
+  const [deadlineInputValue, setDeadlineInputValue] = useState(() => ({ ...formDefaults, ...initial }).deadline_at);
+  const deadlineIsToday = selectedType === "deadline" && Boolean(deadlineInputValue) && isTodayDeadline(deadlineInputValue);
   const descriptionField = register("description");
+  const deadlineField = register("deadline_at");
   const {
     ref: descriptionRegisterRef,
     onBlur: handleDescriptionBlur,
@@ -207,6 +233,7 @@ export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFo
   const handleDelete = () => {
     onDelete?.();
     reset(formDefaults);
+    setDeadlineInputValue(formDefaults.deadline_at);
     prevTypeRef.current = null;
     window.requestAnimationFrame(() => onValuesChange?.(formDefaults));
   };
@@ -226,10 +253,18 @@ export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFo
     prevTypeRef.current = selectedType;
 
     if (selectedType === "deadline") {
-      setValue("reminder_mode", settings.default_deadline_reminder_mode);
-      setValue("reminder_time_local", settings.default_deadline_reminder_time_local);
+      const currentDeadline = getValues("deadline_at");
+      const deadlineAt = currentDeadline || buildTodayDeadlineDefault();
+      if (!currentDeadline) {
+        setValue("deadline_at", deadlineAt);
+      }
+      setDeadlineInputValue(deadlineAt);
+      setValue("reminder_mode", isTodayDeadline(deadlineAt) ? "once_at_time" : settings.default_deadline_reminder_mode);
+      setValue("reminder_time_local", isTodayDeadline(deadlineAt) ? deadlineAt.slice(11, 16) : settings.default_deadline_reminder_time_local);
       setValue("reminder_interval_hours", settings.default_deadline_reminder_interval_hours);
     } else if (selectedType === "waiting") {
+      setValue("deadline_at", "");
+      setDeadlineInputValue("");
       setValue("reminder_mode", settings.default_waiting_reminder_mode);
       setValue("reminder_time_local", settings.default_waiting_reminder_time_local);
       setValue("reminder_interval_hours", settings.default_waiting_reminder_interval_hours);
@@ -240,6 +275,7 @@ export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFo
     }
   }, [
     selectedType,
+    getValues,
     setValue,
     settings.default_deadline_reminder_interval_hours,
     settings.default_deadline_reminder_mode,
@@ -249,6 +285,13 @@ export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFo
     settings.default_waiting_reminder_mode,
     settings.default_waiting_reminder_time_local,
   ]);
+
+  useEffect(() => {
+    if (selectedType !== "deadline" || !deadlineInputValue) return;
+    if (isTodayDeadline(deadlineInputValue) && selectedReminderMode !== "once_at_time") {
+      setValue("reminder_mode", "once_at_time");
+    }
+  }, [deadlineInputValue, selectedReminderMode, selectedType, setValue]);
 
   return (
     <form
@@ -331,31 +374,36 @@ export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFo
       {selectedType === "deadline" && (
         <label>
           {t("deadlineLabel")}
-          <input type="datetime-local" {...register("deadline_at")} />
-          <span className="field-hint">{t("timezone")}: {settings.timezone}</span>
-        </label>
-      )}
-
-      {selectedType === "waiting" && (
-        <label>
-          {t("deadlineOptional")}
-          <input type="datetime-local" {...register("deadline_at")} />
+          <input
+            type="datetime-local"
+            {...deadlineField}
+            onChange={(event) => {
+              void deadlineField.onChange(event);
+              setDeadlineInputValue(event.currentTarget.value);
+            }}
+            onInput={(event) => {
+              setDeadlineInputValue(event.currentTarget.value);
+            }}
+          />
           <span className="field-hint">{t("timezone")}: {settings.timezone}</span>
         </label>
       )}
 
       {(selectedType === "deadline" || selectedType === "waiting") && (
         <>
-          <label>
-            {t("reminderMode")}
-            <select {...register("reminder_mode")}>
-              <option value="none">{t("reminderModeNone")}</option>
-              <option value="daily_at_time">{t("reminderModeDaily")}</option>
-              <option value="every_n_hours">{t("reminderModeInterval")}</option>
-            </select>
-          </label>
+          {deadlineIsToday ? null : (
+            <label>
+              {t("reminderMode")}
+              <select {...register("reminder_mode")}>
+                <option value="none">{t("reminderModeNone")}</option>
+                <option value="once_at_time">{t("reminderModeOnce")}</option>
+                <option value="daily_at_time">{t("reminderModeDaily")}</option>
+                <option value="every_n_hours">{t("reminderModeInterval")}</option>
+              </select>
+            </label>
+          )}
 
-          {selectedReminderMode === "daily_at_time" && (
+          {(selectedReminderMode === "daily_at_time" || selectedReminderMode === "once_at_time") && (
             <label>
               {t("reminderAtTime")}
               <input type="time" {...register("reminder_time_local")} />

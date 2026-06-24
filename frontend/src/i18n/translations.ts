@@ -81,6 +81,7 @@ export type TranslationKey =
   | "reminderModeNone"
   | "reminderModeDaily"
   | "reminderModeInterval"
+  | "reminderModeOnce"
   | "reminderAtTime"
   | "remindEveryHours"
   | "saving"
@@ -184,6 +185,7 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     reminderModeNone: "No reminders",
     reminderModeDaily: "Every day at time",
     reminderModeInterval: "Every N hours",
+    reminderModeOnce: "Once at selected time",
     reminderAtTime: "Reminder time (HH:mm)",
     remindEveryHours: "Remind every N hours",
     saving: "Saving...",
@@ -286,6 +288,7 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     reminderModeNone: "Без напоминаний",
     reminderModeDaily: "Каждый день в выбранное время",
     reminderModeInterval: "Каждые N часов",
+    reminderModeOnce: "Один раз в выбранное время",
     reminderAtTime: "Время напоминания (HH:mm)",
     remindEveryHours: "Напоминать каждые N часов",
     saving: "Сохранение...",
@@ -388,6 +391,7 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     reminderModeNone: "Без нагадувань",
     reminderModeDaily: "Щодня у вибраний час",
     reminderModeInterval: "Кожні N годин",
+    reminderModeOnce: "Один раз у вибраний час",
     reminderAtTime: "Час нагадування (HH:mm)",
     remindEveryHours: "Нагадувати кожні N годин",
     saving: "Збереження...",

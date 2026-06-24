@@ -13,6 +13,10 @@ function toIsoOrNull(value: string): string | null {
   return fromLocalDateTimeInput(value);
 }
 
+function usesReminderTime(values: TaskFormValues): boolean {
+  return values.type === "recurring" || values.reminder_mode === "daily_at_time" || values.reminder_mode === "once_at_time";
+}
+
 export function TaskCreatePage() {
   const { t, settings } = useAppSettings();
   const { showToast } = useToast();
@@ -32,10 +36,9 @@ export function TaskCreatePage() {
       title: values.title,
       description: values.description || undefined,
       type: values.type,
-      deadline_at: toIsoOrNull(values.deadline_at),
+      deadline_at: values.type === "deadline" ? toIsoOrNull(values.deadline_at) : null,
       reminder_mode: values.type === "deadline" || values.type === "waiting" ? values.reminder_mode : null,
-      reminder_time_local:
-        values.type === "recurring" || values.reminder_mode === "daily_at_time" ? values.reminder_time_local || null : null,
+      reminder_time_local: usesReminderTime(values) ? values.reminder_time_local || null : null,
       reminder_interval_hours:
         values.type !== "recurring" && values.reminder_mode === "every_n_hours" ? values.reminder_interval_hours : null,
       recurrence_rule: values.type === "recurring" ? values.recurrence_rule || null : null,

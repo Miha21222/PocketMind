@@ -35,6 +35,14 @@ def next_daily_reminder(now_utc: datetime, timezone: str, hhmm: str | None) -> d
     return candidate
 
 
+def one_time_reminder_on_deadline(deadline_at: datetime | None, timezone: str, hhmm: str | None) -> datetime | None:
+    if deadline_at is None:
+        return None
+    local_tz = ZoneInfo(timezone)
+    local_deadline = deadline_at.astimezone(local_tz)
+    return combine_local_to_utc(local_deadline.date(), hhmm, timezone)
+
+
 def _next_month_date(base_date: date) -> date:
     year = base_date.year
     month = base_date.month + 1
@@ -105,8 +113,12 @@ def next_strategy_reminder(
     elif mode == ReminderMode.every_n_hours:
         step = interval_hours if interval_hours and interval_hours > 0 else 4
         candidate = now_utc + timedelta(hours=step)
+    elif mode == ReminderMode.once_at_time:
+        candidate = one_time_reminder_on_deadline(deadline_at, timezone, hhmm)
     else:
         candidate = None
+    if candidate and candidate <= now_utc:
+        return None
     if candidate and deadline_at and candidate > deadline_at:
         return None
     return candidate

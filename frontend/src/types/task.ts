@@ -1,6 +1,6 @@
 export type TaskType = "quick" | "deadline" | "no_deadline" | "recurring" | "waiting";
 export type TaskStatus = "new" | "planned" | "reminded" | "snoozed" | "done" | "cancelled";
-export type TaskReminderMode = "none" | "daily_at_time" | "every_n_hours";
+export type TaskReminderMode = "none" | "daily_at_time" | "every_n_hours" | "once_at_time";
 
 export interface LocalTask {
   id: string;

@@ -42,6 +42,15 @@ function nextDailyReminder(nowMs: number, hhmm: string): string {
   return toIso(new Date(candidate));
 }
 
+function oneTimeReminderOnDeadline(deadlineAt: string | null, hhmm: string | null): string | null {
+  if (!deadlineAt || !hhmm) return null;
+  const candidate = new Date(deadlineAt);
+  if (Number.isNaN(candidate.getTime())) return null;
+  const [hours, minutes] = hhmm.split(":").map((part) => Number(part));
+  candidate.setHours(hours || 0, minutes || 0, 0, 0);
+  return toIso(candidate);
+}
+
 function nextRecurringReminder(nowMs: number, recurrenceRule: string | null, hhmm: string | null): string | null {
   if (!recurrenceRule || !hhmm) return null;
   const upperRule = recurrenceRule.toUpperCase();
@@ -106,6 +115,9 @@ function applyTiming(task: LocalTask, settings: UserSettings, now = new Date()):
     } else if (next.reminder_mode === "every_n_hours") {
       const hours = next.reminder_interval_hours ?? 4;
       next.remind_at = capByDeadline(toIso(new Date(nowMs + hours * HOUR_MS)), next.deadline_at);
+    } else if (next.reminder_mode === "once_at_time") {
+      const candidate = oneTimeReminderOnDeadline(next.deadline_at, next.reminder_time_local);
+      next.remind_at = candidate && timestampOrZero(candidate) > nowMs ? capByDeadline(candidate, next.deadline_at) : null;
     } else {
       next.remind_at = null;
     }
