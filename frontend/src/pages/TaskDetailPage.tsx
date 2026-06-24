@@ -1,12 +1,14 @@
 import { useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, CheckCircle2, ListTodo, XCircle } from "lucide-react";
 import { cancelTask, getTask, markTaskDone } from "../api/tasks";
 import { LoadingState } from "../components/LoadingState";
 import { useAppSettings } from "../contexts/AppSettingsContext";
 import { useToast } from "../contexts/ToastContext";
 import { mergeTaskIntoCache, scheduleTasksBackgroundRefresh, updateTaskInCache, useTasksAllQuery } from "../features/tasks/cache";
 import { formatInTimezone } from "../utils/dateTime";
+import { taskStatusLabel, taskTypeLabel } from "../utils/taskLabels";
 
 export function TaskDetailPage() {
   const { settings, t } = useAppSettings();
@@ -53,51 +55,76 @@ export function TaskDetailPage() {
 
   return (
     <section className="grid-section">
-      <h2>{task.title}</h2>
-      {task.description && <p>{task.description}</p>}
-      <p>
-        {t("type")}: {task.type}
-      </p>
-      <p>
-        {t("status")}: {task.status}
-      </p>
-      {!isFinal && task.remind_at && (
-        <p>
-          {t("reminderTime")}: {formatInTimezone(task.remind_at, settings.timezone, settings.language, true)}
-        </p>
-      )}
-      {task.deadline_at && (
-        <p>
-          {t("deadlineLabel")}: {formatInTimezone(task.deadline_at, settings.timezone, settings.language, true)}
-        </p>
-      )}
+      <div className="tasks-title-pill">{t("tasks")}</div>
 
-      {!isFinal && (
-        <div className="task-actions">
-          <button
-            className="success"
-            onClick={() =>
-              doneMutation.mutate(task.id, {
-                onSuccess: () => showToast({ tone: "success", message: t("taskMarkedDone") }),
-                onError: () => showToast({ tone: "error", message: t("taskActionFailed") }),
-              })
-            }
-          >
-            {t("done")}
-          </button>
-          <button
-            className="danger"
-            onClick={() =>
-              cancelMutation.mutate(task.id, {
-                onSuccess: () => showToast({ tone: "success", message: t("taskCancelledMsg") }),
-                onError: () => showToast({ tone: "error", message: t("taskActionFailed") }),
-              })
-            }
-          >
-            {t("cancel")}
-          </button>
+      <article className="task-detail-card">
+        <div className="section-card-header task-detail-header">
+          <span className="section-card-icon" aria-hidden="true">
+            <ListTodo size={18} />
+          </span>
+          <div className="task-detail-heading">
+            <h2>{task.title}</h2>
+            <span className={`status ${task.status}`}>{taskStatusLabel(task.status, t)}</span>
+          </div>
         </div>
-      )}
+        <div className="section-card-divider" />
+
+        {task.description && <p className="task-detail-description">{task.description}</p>}
+
+        <dl className="task-detail-meta">
+          <div>
+            <dt>{t("type")}</dt>
+            <dd>{taskTypeLabel(task.type, t)}</dd>
+          </div>
+          {!isFinal && task.remind_at && (
+            <div>
+              <dt>{t("reminderTime")}</dt>
+              <dd>{formatInTimezone(task.remind_at, settings.timezone, settings.language, true)}</dd>
+            </div>
+          )}
+          {task.deadline_at && (
+            <div>
+              <dt>{t("deadlineLabel")}</dt>
+              <dd>{formatInTimezone(task.deadline_at, settings.timezone, settings.language, true)}</dd>
+            </div>
+          )}
+        </dl>
+
+        <div className="task-actions task-detail-actions">
+          <Link to="/tasks" className="link-btn ghost">
+            <ArrowLeft size={18} aria-hidden="true" />
+            {t("back")}
+          </Link>
+          {!isFinal && (
+            <>
+              <button
+                className="success"
+                onClick={() =>
+                  doneMutation.mutate(task.id, {
+                    onSuccess: () => showToast({ tone: "success", message: t("taskMarkedDone") }),
+                    onError: () => showToast({ tone: "error", message: t("taskActionFailed") }),
+                  })
+                }
+              >
+                <CheckCircle2 size={18} aria-hidden="true" />
+                {t("done")}
+              </button>
+              <button
+                className="danger"
+                onClick={() =>
+                  cancelMutation.mutate(task.id, {
+                    onSuccess: () => showToast({ tone: "success", message: t("taskCancelledMsg") }),
+                    onError: () => showToast({ tone: "error", message: t("taskActionFailed") }),
+                  })
+                }
+              >
+                <XCircle size={18} aria-hidden="true" />
+                {t("cancel")}
+              </button>
+            </>
+          )}
+        </div>
+      </article>
     </section>
   );
 }
