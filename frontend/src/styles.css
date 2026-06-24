@@ -179,7 +179,8 @@ a {
   border-radius: 12px;
   background: #ebf3fb;
   padding: 4px 10px;
-  text-transform: lowercase;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .status.done {
@@ -199,6 +200,87 @@ a {
   margin-top: 12px;
 }
 
+.task-detail-card {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid #cfe0ef;
+  border-radius: 18px;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+  box-shadow: 0 10px 24px rgba(23, 81, 138, 0.08);
+}
+
+.task-detail-header {
+  align-items: center;
+}
+
+.task-detail-heading {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.task-detail-heading h2 {
+  min-width: 0;
+  flex: 1 1 auto;
+  margin: 0;
+  color: #0f467a;
+  font-size: 1.2rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.task-detail-heading .status {
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+.task-detail-description {
+  margin: 0;
+  padding: 2px;
+  color: #24496b;
+  font-weight: 700;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.task-detail-meta {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.task-detail-meta div {
+  display: grid;
+  gap: 2px;
+}
+
+.task-detail-meta dt {
+  color: #6b86a1;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.task-detail-meta dd {
+  margin: 0;
+  color: #24496b;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.task-detail-actions {
+  margin-top: 2px;
+}
+
+.task-detail-actions button,
+.task-detail-actions .link-btn {
+  padding: 8px 12px;
+  line-height: 1;
+}
+
 button,
 .link-btn {
   border: 0;
@@ -209,7 +291,16 @@ button,
   font-weight: 700;
   font-size: 1rem;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   transition: transform 0.08s ease, filter 0.12s ease, box-shadow 0.12s ease;
+}
+
+button svg,
+.link-btn svg {
+  flex: 0 0 auto;
 }
 
 button:active,
@@ -253,7 +344,7 @@ button.ghost,
 }
 
 .link-btn {
-  display: inline-block;
+  display: inline-flex;
 }
 
 .task-form {
@@ -280,8 +371,24 @@ button.ghost,
   font: inherit;
 }
 
+.task-form select {
+  font-size: 0.95rem;
+}
+
+.task-form input[type="datetime-local"],
+.task-form input[type="time"],
+.task-form input[type="number"] {
+  font-size: 0.95rem;
+}
+
+.task-form textarea.description-textarea {
+  min-height: 118px;
+  overflow: hidden;
+  resize: none;
+}
+
 .field-hint {
-  font-size: 0.86rem;
+  font-size: 0.8rem;
   color: var(--pm-muted);
   font-weight: 600;
 }
@@ -469,18 +576,56 @@ button.ghost,
 
 .filter-group-card {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   background: rgba(255, 255, 255, 0.74);
   border: 1px solid #d4e3f1;
   border-radius: 16px;
   padding: 10px;
 }
 
-.filter-group-title {
+.task-results-card {
+  display: grid;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid #d4e3f1;
+  border-radius: 16px;
+  padding: 10px;
+  box-shadow: 0 8px 20px rgba(23, 81, 138, 0.06);
+}
+
+.section-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-card-header h2 {
   margin: 0;
-  font-size: 0.95rem;
+  color: #0f467a;
+  font-size: 1.2rem;
   font-weight: 800;
-  color: #46709b;
+}
+
+.section-card-icon {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #e3f0fb;
+  color: #2566ae;
+}
+
+.section-card-divider {
+  height: 1px;
+  background: #d8e6f2;
+}
+
+.filter-controls {
+  display: grid;
+  gap: 8px;
 }
 
 .filter-subgroup {
@@ -490,7 +635,7 @@ button.ghost,
 
 .filter-subgroup-title {
   margin: 0;
-  font-size: 0.88rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: #6b86a1;
 }
@@ -500,7 +645,8 @@ button.ghost,
   border: 1px solid #c9deef;
   border-radius: 12px;
   padding: 10px 12px;
-  font: inherit;
+  font-family: inherit;
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--pm-blue-700);
   background: #ffffff;
@@ -691,12 +837,15 @@ button.ghost,
   }
 }
 
-.empty,
-.error {
-  padding: 12px;
+.empty {
+  margin: 0;
+  padding: 4px 2px;
+  color: #4f6e8b;
+  font-size: 1rem;
 }
 
 .error {
+  padding: 12px;
   color: var(--pm-danger);
 }
 

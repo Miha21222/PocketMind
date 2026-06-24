@@ -7,6 +7,7 @@ import { useAppSettings } from "../contexts/AppSettingsContext";
 import { useVoiceInput, type VoiceInput } from "../hooks/useVoiceInput";
 import { TranslationKey } from "../i18n/translations";
 import { TaskReminderMode, TaskType } from "../types/task";
+import { estimateTextareaRows } from "./textareaAutosize";
 
 function VoiceRecorderModal({
   voice,
@@ -148,6 +149,27 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
   });
   const selectedType = watch("type");
   const selectedReminderMode = watch("reminder_mode");
+  const descriptionField = register("description");
+  const {
+    ref: descriptionRegisterRef,
+    onBlur: handleDescriptionBlur,
+    onChange: handleDescriptionChange,
+    ...descriptionInputProps
+  } = descriptionField;
+  const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
+  const [descriptionRows, setDescriptionRows] = useState(4);
+  const descriptionValue = watch("description");
+
+  const updateDescriptionRows = (textarea: HTMLTextAreaElement | null) => {
+    if (!textarea) return;
+    setDescriptionRows(estimateTextareaRows(textarea.value, textarea.clientWidth));
+  };
+
+  useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => updateDescriptionRows(descriptionRef.current));
+    return () => window.cancelAnimationFrame(frameId);
+  }, [descriptionValue]);
+
   const voice = useVoiceInput(settings.language);
   const [voiceTarget, setVoiceTarget] = useState<"title" | "description" | null>(null);
   const appendToField = (field: "title" | "description") => (text: string) => {
@@ -215,7 +237,26 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
       <label>
         {t("description")}
         <div className="voice-field">
-          <textarea rows={4} {...register("description")} />
+          <textarea
+            rows={descriptionRows}
+            className="description-textarea"
+            {...descriptionInputProps}
+            onChange={(event) => {
+              void handleDescriptionChange(event);
+              updateDescriptionRows(event.currentTarget);
+            }}
+            onBlur={(event) => {
+              void handleDescriptionBlur(event);
+              updateDescriptionRows(event.currentTarget);
+            }}
+            onFocus={(event) => updateDescriptionRows(event.currentTarget)}
+            onInput={(event) => updateDescriptionRows(event.currentTarget)}
+            ref={(element) => {
+              descriptionRegisterRef(element);
+              descriptionRef.current = element;
+              updateDescriptionRows(element);
+            }}
+          />
           <button
             type="button"
             className="voice-mic"
