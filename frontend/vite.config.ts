@@ -32,7 +32,9 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), spa404Fallback()],
     server: {
       host: "0.0.0.0",
-      port: 5173,
+      // Honor a PORT assigned by the environment (e.g. the preview tooling),
+      // falling back to the conventional dev port for manual runs.
+      port: Number(process.env.PORT) || 5173,
     },
     build: {
       sourcemap: false,

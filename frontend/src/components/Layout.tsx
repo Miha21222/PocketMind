@@ -1,21 +1,28 @@
 import { PropsWithChildren, useEffect, useState } from "react";
-import { Link, NavLink, useLocation } from "react-router-dom";
-import { FileText, House, Languages, ListTodo, PlusSquare, Settings as SettingsIcon } from "lucide-react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { ArrowLeft, FileText, House, Languages, ListTodo, PlusSquare, Settings as SettingsIcon } from "lucide-react";
 import { useAppSettings } from "../contexts/AppSettingsContext";
 import { useToast } from "../contexts/ToastContext";
 import { hasTaskCreateDraft, TASK_CREATE_DRAFT_UPDATED_EVENT } from "../features/tasks/taskCreateDraft";
+import { hapticImpact, hapticSelection } from "../utils/haptics";
 import { TranslationKey } from "../i18n/translations";
 import { AppLanguage } from "../types/settings";
 
 const LANGUAGE_CYCLE: AppLanguage[] = ["en", "ru", "uk"];
 
+// The three destinations reachable from the bottom navigation are "roots" and
+// never show the floating back button.
+const ROOT_PATHS = ["/", "/tasks", "/settings"];
+
 export function Layout({ children }: PropsWithChildren) {
   const { settings, setLanguage, t } = useAppSettings();
   const { showToast } = useToast();
   const location = useLocation();
+  const navigate = useNavigate();
   const pageTitle = getPageTitle(location.pathname, t);
   const [hasCreateDraft, setHasCreateDraft] = useState(() => hasTaskCreateDraft());
   const isTaskCreatePage = location.pathname === "/tasks/new";
+  const showBackButton = !ROOT_PATHS.includes(location.pathname);
   const FloatingCreateIcon = hasCreateDraft ? FileText : PlusSquare;
 
   useEffect(() => {
@@ -44,6 +51,7 @@ export function Layout({ children }: PropsWithChildren) {
               try {
                 const next = LANGUAGE_CYCLE[(LANGUAGE_CYCLE.indexOf(settings.language) + 1) % LANGUAGE_CYCLE.length];
                 await setLanguage(next);
+                hapticSelection();
                 showToast({ tone: "success", message: t("languageUpdated") });
               } catch {
                 showToast({ tone: "error", message: t("settingsSaveError") });
@@ -57,6 +65,21 @@ export function Layout({ children }: PropsWithChildren) {
       </header>
 
       <main className="app-content">{children}</main>
+
+      {showBackButton && (
+        <button
+          type="button"
+          className="floating-back-btn"
+          aria-label={t("back")}
+          title={t("back")}
+          onClick={() => {
+            hapticImpact("light");
+            navigate(-1);
+          }}
+        >
+          <ArrowLeft size={34} />
+        </button>
+      )}
 
       {!isTaskCreatePage && (
         <Link

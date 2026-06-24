@@ -7,11 +7,8 @@ import { useAppSettings } from "../contexts/AppSettingsContext";
 import { useToast } from "../contexts/ToastContext";
 import { scheduleTasksBackgroundRefresh, updateTaskInCache } from "../features/tasks/cache";
 import { clearTaskCreateDraft, readTaskCreateDraft, writeTaskCreateDraft } from "../features/tasks/taskCreateDraft";
-import { fromLocalDateTimeInput } from "../utils/dateTime";
-
-function toIsoOrNull(value: string): string | null {
-  return fromLocalDateTimeInput(value);
-}
+import { fromLocalDateInput } from "../utils/dateTime";
+import { hapticNotification } from "../utils/haptics";
 
 function usesReminderTime(values: TaskFormValues): boolean {
   return values.type === "recurring" || values.reminder_mode === "daily_at_time" || values.reminder_mode === "once_at_time";
@@ -36,7 +33,7 @@ export function TaskCreatePage() {
       title: values.title,
       description: values.description || undefined,
       type: values.type,
-      deadline_at: values.type === "deadline" ? toIsoOrNull(values.deadline_at) : null,
+      deadline_at: values.type === "deadline" ? fromLocalDateInput(values.deadline_at) : null,
       reminder_mode: values.type === "deadline" || values.type === "waiting" ? values.reminder_mode : null,
       reminder_time_local: usesReminderTime(values) ? values.reminder_time_local || null : null,
       reminder_interval_hours:
@@ -46,9 +43,11 @@ export function TaskCreatePage() {
     try {
       await createMutation.mutateAsync(payload);
       clearTaskCreateDraft();
+      hapticNotification("success");
       showToast({ tone: "success", message: t("taskCreated") });
       navigate("/tasks");
     } catch {
+      hapticNotification("error");
       showToast({ tone: "error", message: t("failedCreateTask") });
     }
   };

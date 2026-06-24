@@ -8,11 +8,16 @@ export type TranslationKey =
   | "newTask"
   | "settings"
   | "dashboard"
+  | "dashboardTasks"
   | "taskList"
   | "today"
+  | "tomorrow"
+  | "soon"
+  | "showPeriod"
   | "overdue"
   | "upcoming"
   | "waiting"
+  | "haptics"
   | "noDeadline"
   | "noTasks"
   | "status"
@@ -36,6 +41,7 @@ export type TranslationKey =
   | "save"
   | "saveTask"
   | "delete"
+  | "discard"
   | "title"
   | "description"
   | "reminderTime"
@@ -51,13 +57,18 @@ export type TranslationKey =
   | "back"
   | "done"
   | "cancel"
-  | "taskStatusNew"
-  | "taskStatusPlanned"
-  | "taskStatusReminded"
+  | "taskStatusActive"
   | "taskStatusSnoozed"
   | "taskStatusDone"
   | "taskStatusCancelled"
   | "filterTasks"
+  | "errorTitleRequired"
+  | "errorTitleTooLong"
+  | "errorDescriptionTooLong"
+  | "errorRecurrenceRequired"
+  | "errorDeadlineRequired"
+  | "errorTimeRequired"
+  | "errorReminderTimeRequired"
   | "failedCreateTask"
   | "failedLoadTask"
   | "timezone"
@@ -74,6 +85,8 @@ export type TranslationKey =
   | "saveSettings"
   | "settingsSaved"
   | "settingsSaveError"
+  | "unsavedSettingsTitle"
+  | "unsavedSettingsBody"
   | "authFailed"
   | "quickAutoReminderHint"
   | "minutes"
@@ -112,11 +125,16 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     newTask: "New",
     settings: "Settings",
     dashboard: "Dashboard",
-    taskList: "Task list",
+    dashboardTasks: "Tasks",
+    taskList: "All tasks",
     today: "Today",
+    tomorrow: "Tomorrow",
+    soon: "Coming up",
+    showPeriod: "Show",
     overdue: "Overdue",
     upcoming: "Upcoming reminders",
     waiting: "Waiting",
+    haptics: "Haptic feedback",
     noDeadline: "No deadline",
     noTasks: "No tasks",
     status: "Status",
@@ -140,6 +158,7 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     save: "Save",
     saveTask: "Save task",
     delete: "Delete",
+    discard: "Discard",
     title: "Title",
     description: "Description",
     reminderTime: "Reminder",
@@ -155,13 +174,18 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     back: "Back",
     done: "Done",
     cancel: "Cancel",
-    taskStatusNew: "New",
-    taskStatusPlanned: "Planned",
-    taskStatusReminded: "Reminded",
+    taskStatusActive: "Active",
     taskStatusSnoozed: "Snoozed",
     taskStatusDone: "Done",
     taskStatusCancelled: "Cancelled",
     filterTasks: "Filter tasks",
+    errorTitleRequired: "Title is required",
+    errorTitleTooLong: "Title is too long",
+    errorDescriptionTooLong: "Description is too long",
+    errorRecurrenceRequired: "Recurrence is required for a recurring task",
+    errorDeadlineRequired: "Deadline is required for a deadline task",
+    errorTimeRequired: "Time is required",
+    errorReminderTimeRequired: "Reminder time is required",
     failedCreateTask: "Failed to create task",
     failedLoadTask: "Failed to load task",
     timezone: "Timezone",
@@ -178,6 +202,8 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     saveSettings: "Save settings",
     settingsSaved: "Settings saved",
     settingsSaveError: "Failed to save settings",
+    unsavedSettingsTitle: "Unsaved settings",
+    unsavedSettingsBody: "Save your changes or discard them to return to the last saved values.",
     authFailed: "Auth failed",
     quickAutoReminderHint: "Auto reminder after",
     minutes: "minutes",
@@ -215,11 +241,16 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     newTask: "Новая",
     settings: "Настройки",
     dashboard: "Дашборд",
-    taskList: "Список задач",
+    dashboardTasks: "Задачи",
+    taskList: "Все задачи",
     today: "Сегодня",
-    overdue: "Просрочено",
+    tomorrow: "Завтра",
+    soon: "Ближайшее время",
+    showPeriod: "Показать",
+    overdue: "Просроченные",
     upcoming: "Ближайшие напоминания",
     waiting: "Ожидание",
+    haptics: "Тактильный отклик",
     noDeadline: "Без дедлайна",
     noTasks: "Нет задач",
     status: "Статус",
@@ -243,6 +274,7 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     save: "Сохранить",
     saveTask: "Сохранить задачу",
     delete: "Удалить",
+    discard: "Сбросить",
     title: "Заголовок",
     description: "Описание",
     reminderTime: "Напоминание",
@@ -258,13 +290,18 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     back: "Назад",
     done: "Готово",
     cancel: "Отмена",
-    taskStatusNew: "Новая",
-    taskStatusPlanned: "Запланирована",
-    taskStatusReminded: "Напомнена",
+    taskStatusActive: "Активна",
     taskStatusSnoozed: "Отложена",
     taskStatusDone: "Выполнена",
     taskStatusCancelled: "Отменена",
     filterTasks: "Фильтр задач",
+    errorTitleRequired: "Укажите заголовок",
+    errorTitleTooLong: "Заголовок слишком длинный",
+    errorDescriptionTooLong: "Описание слишком длинное",
+    errorRecurrenceRequired: "Для повторяющейся задачи нужно указать повтор",
+    errorDeadlineRequired: "Для задачи с дедлайном нужно указать дату",
+    errorTimeRequired: "Укажите время",
+    errorReminderTimeRequired: "Укажите время напоминания",
     failedCreateTask: "Не удалось создать задачу",
     failedLoadTask: "Не удалось загрузить задачу",
     timezone: "Часовой пояс",
@@ -281,6 +318,8 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     saveSettings: "Сохранить настройки",
     settingsSaved: "Настройки сохранены",
     settingsSaveError: "Не удалось сохранить настройки",
+    unsavedSettingsTitle: "Есть несохранённые настройки",
+    unsavedSettingsBody: "Сохраните изменения или сбросьте их, чтобы вернуться к последним сохранённым значениям.",
     authFailed: "Ошибка авторизации",
     quickAutoReminderHint: "Автонапоминание через",
     minutes: "минут",
@@ -318,11 +357,16 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     newTask: "Нове",
     settings: "Налаштування",
     dashboard: "Дашборд",
-    taskList: "Список завдань",
+    dashboardTasks: "Завдання",
+    taskList: "Усі завдання",
     today: "Сьогодні",
-    overdue: "Прострочено",
+    tomorrow: "Завтра",
+    soon: "Найближчим часом",
+    showPeriod: "Показати",
+    overdue: "Прострочені",
     upcoming: "Найближчі нагадування",
     waiting: "Очікування",
+    haptics: "Тактильний відгук",
     noDeadline: "Без дедлайну",
     noTasks: "Немає завдань",
     status: "Статус",
@@ -346,6 +390,7 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     save: "Зберегти",
     saveTask: "Зберегти завдання",
     delete: "Видалити",
+    discard: "Скинути",
     title: "Заголовок",
     description: "Опис",
     reminderTime: "Нагадування",
@@ -361,13 +406,18 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     back: "Назад",
     done: "Готово",
     cancel: "Скасувати",
-    taskStatusNew: "Нове",
-    taskStatusPlanned: "Заплановане",
-    taskStatusReminded: "Нагадано",
+    taskStatusActive: "Активне",
     taskStatusSnoozed: "Відкладене",
     taskStatusDone: "Виконане",
     taskStatusCancelled: "Скасоване",
     filterTasks: "Фільтр завдань",
+    errorTitleRequired: "Вкажіть заголовок",
+    errorTitleTooLong: "Заголовок занадто довгий",
+    errorDescriptionTooLong: "Опис занадто довгий",
+    errorRecurrenceRequired: "Для повторюваного завдання потрібно вказати повтор",
+    errorDeadlineRequired: "Для завдання з дедлайном потрібно вказати дату",
+    errorTimeRequired: "Вкажіть час",
+    errorReminderTimeRequired: "Вкажіть час нагадування",
     failedCreateTask: "Не вдалося створити завдання",
     failedLoadTask: "Не вдалося завантажити завдання",
     timezone: "Часовий пояс",
@@ -384,6 +434,8 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     saveSettings: "Зберегти налаштування",
     settingsSaved: "Налаштування збережено",
     settingsSaveError: "Не вдалося зберегти налаштування",
+    unsavedSettingsTitle: "Є незбережені налаштування",
+    unsavedSettingsBody: "Збережіть зміни або скиньте їх, щоб повернутися до останніх збережених значень.",
     authFailed: "Помилка авторизації",
     quickAutoReminderHint: "Автонагадування через",
     minutes: "хвилин",

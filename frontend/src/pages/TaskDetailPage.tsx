@@ -1,18 +1,19 @@
 import { useEffect } from "react";
-import { Link, useParams } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CheckCircle2, ListTodo, XCircle } from "lucide-react";
-import { cancelTask, getTask, markTaskDone } from "../api/tasks";
+import { useNavigate, useParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check, ListTodo, Pencil, X } from "lucide-react";
+import { getTask } from "../api/tasks";
 import { LoadingState } from "../components/LoadingState";
 import { useAppSettings } from "../contexts/AppSettingsContext";
-import { useToast } from "../contexts/ToastContext";
-import { mergeTaskIntoCache, scheduleTasksBackgroundRefresh, updateTaskInCache, useTasksAllQuery } from "../features/tasks/cache";
+import { mergeTaskIntoCache, useTasksAllQuery } from "../features/tasks/cache";
+import { isTaskOverdue } from "../features/tasks/selectors";
+import { useTaskActions } from "../features/tasks/useTaskActions";
 import { formatInTimezone } from "../utils/dateTime";
 import { taskStatusLabel, taskTypeLabel } from "../utils/taskLabels";
 
 export function TaskDetailPage() {
   const { settings, t } = useAppSettings();
-  const { showToast } = useToast();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const params = useParams();
   const taskId = params.taskId ?? "";
@@ -26,6 +27,7 @@ export function TaskDetailPage() {
     enabled: shouldFetchFallback,
   });
   const task = taskFromCache ?? taskFallbackQuery.data;
+  const { markDone, cancel, pending } = useTaskActions();
 
   useEffect(() => {
     if (taskFallbackQuery.data && !taskFromCache) {
@@ -33,25 +35,11 @@ export function TaskDetailPage() {
     }
   }, [queryClient, taskFallbackQuery.data, taskFromCache]);
 
-  const doneMutation = useMutation({
-    mutationFn: (id: string) => markTaskDone(id, settings),
-    onSuccess: (updatedTask) => {
-      updateTaskInCache(queryClient, updatedTask);
-      scheduleTasksBackgroundRefresh(queryClient);
-    },
-  });
-  const cancelMutation = useMutation({
-    mutationFn: cancelTask,
-    onSuccess: (updatedTask) => {
-      updateTaskInCache(queryClient, updatedTask);
-      scheduleTasksBackgroundRefresh(queryClient);
-    },
-  });
-
   if (!isValidTaskId) return <p>{t("taskNotFound")}</p>;
   if (tasksAllQuery.isPending || (shouldFetchFallback && taskFallbackQuery.isPending)) return <LoadingState label={t("loadingTask")} />;
   if ((tasksAllQuery.error && !taskFromCache) || (shouldFetchFallback && taskFallbackQuery.error) || !task) return <p>{t("taskNotFound")}</p>;
   const isFinal = task.status === "done" || task.status === "cancelled";
+  const overdue = isTaskOverdue(task);
 
   return (
     <section className="grid-section">
@@ -62,7 +50,11 @@ export function TaskDetailPage() {
           </span>
           <div className="task-detail-heading">
             <h2>{task.title}</h2>
-            <span className={`status ${task.status}`}>{taskStatusLabel(task.status, t)}</span>
+            {overdue ? (
+              <span className="status overdue">{t("overdue")}</span>
+            ) : (
+              <span className={`status ${task.status}`}>{taskStatusLabel(task.status, t)}</span>
+            )}
           </div>
         </div>
         <div className="section-card-divider" />
@@ -88,40 +80,39 @@ export function TaskDetailPage() {
           )}
         </dl>
 
-        <div className="task-actions task-detail-actions">
-          <Link to="/tasks" className="link-btn ghost">
-            <ArrowLeft size={18} aria-hidden="true" />
-            {t("back")}
-          </Link>
-          {!isFinal && (
-            <>
-              <button
-                className="success"
-                onClick={() =>
-                  doneMutation.mutate(task.id, {
-                    onSuccess: () => showToast({ tone: "success", message: t("taskMarkedDone") }),
-                    onError: () => showToast({ tone: "error", message: t("taskActionFailed") }),
-                  })
-                }
-              >
-                <CheckCircle2 size={18} aria-hidden="true" />
-                {t("done")}
-              </button>
-              <button
-                className="danger"
-                onClick={() =>
-                  cancelMutation.mutate(task.id, {
-                    onSuccess: () => showToast({ tone: "success", message: t("taskCancelledMsg") }),
-                    onError: () => showToast({ tone: "error", message: t("taskActionFailed") }),
-                  })
-                }
-              >
-                <XCircle size={18} aria-hidden="true" />
-                {t("cancel")}
-              </button>
-            </>
-          )}
-        </div>
+        {!isFinal && (
+          <div className="task-card-actions task-detail-actions">
+            <button
+              type="button"
+              className="icon-btn success"
+              disabled={pending}
+              aria-label={t("done")}
+              title={t("done")}
+              onClick={() => markDone(task.id)}
+            >
+              <Check size={22} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="icon-btn danger"
+              disabled={pending}
+              aria-label={t("cancel")}
+              title={t("cancel")}
+              onClick={() => cancel(task.id)}
+            >
+              <X size={22} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="icon-btn ghost"
+              aria-label={t("edit")}
+              title={t("edit")}
+              onClick={() => navigate(`/tasks/${task.id}/edit`)}
+            >
+              <Pencil size={22} aria-hidden="true" />
+            </button>
+          </div>
+        )}
       </article>
     </section>
   );

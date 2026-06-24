@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { Loader2, Mic, Square } from "lucide-react";
 import { z } from "zod";
 import { useAppSettings } from "../contexts/AppSettingsContext";
+import { hapticNotification } from "../utils/haptics";
 import { useVoiceInput, type VoiceInput } from "../hooks/useVoiceInput";
 import { TranslationKey } from "../i18n/translations";
 import { TaskReminderMode, TaskType } from "../types/task";
@@ -18,14 +19,13 @@ function todayDatePart(): string {
   return toLocalDateTimeInputValue(new Date()).slice(0, 10);
 }
 
-function buildTodayDeadlineDefault(): string {
-  const now = new Date();
-  now.setMinutes(now.getMinutes() + 10, 0, 0);
-  return toLocalDateTimeInputValue(now);
+// Deadlines are date-only; default to today's local date.
+function buildDeadlineDefault(): string {
+  return todayDatePart();
 }
 
-function isTodayDeadline(value: string): boolean {
-  return value.slice(0, 10) === todayDatePart();
+function isTodayDate(value: string): boolean {
+  return Boolean(value) && value.slice(0, 10) === todayDatePart();
 }
 
 function VoiceRecorderModal({
@@ -107,10 +107,12 @@ interface TaskFormProps {
   onDelete?: () => void;
 }
 
+// Validation messages are stored as i18n keys and translated at render time, so
+// they always follow the currently selected language.
 const taskFormSchema = z
   .object({
-    title: z.string().trim().min(1, "Title is required").max(255, "Title is too long"),
-    description: z.string().max(5000, "Description is too long"),
+    title: z.string().trim().min(1, "errorTitleRequired").max(255, "errorTitleTooLong"),
+    description: z.string().max(5000, "errorDescriptionTooLong"),
     type: z.enum(["quick", "deadline", "no_deadline", "recurring", "waiting"]),
     deadline_at: z.string(),
     recurrence_rule: z.string(),
@@ -122,14 +124,14 @@ const taskFormSchema = z
     if (values.type === "recurring" && !values.recurrence_rule) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Recurrence is required for recurring task",
+        message: "errorRecurrenceRequired",
         path: ["recurrence_rule"],
       });
     }
     if (values.type === "deadline" && !values.deadline_at) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Deadline is required for deadline tasks",
+        message: "errorDeadlineRequired",
         path: ["deadline_at"],
       });
     }
@@ -140,14 +142,14 @@ const taskFormSchema = z
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Time is required",
+        message: "errorTimeRequired",
         path: ["reminder_time_local"],
       });
     }
     if (values.type === "recurring" && !values.reminder_time_local) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Reminder time is required",
+        message: "errorReminderTimeRequired",
         path: ["reminder_time_local"],
       });
     }
@@ -174,8 +176,8 @@ export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFo
   });
   const selectedType = watch("type");
   const selectedReminderMode = watch("reminder_mode");
-  const [deadlineInputValue, setDeadlineInputValue] = useState(() => ({ ...formDefaults, ...initial }).deadline_at);
-  const deadlineIsToday = selectedType === "deadline" && Boolean(deadlineInputValue) && isTodayDeadline(deadlineInputValue);
+  const deadlineValue = watch("deadline_at");
+  const deadlineIsToday = selectedType === "deadline" && isTodayDate(deadlineValue);
   const descriptionField = register("description");
   const deadlineField = register("deadline_at");
   const {
@@ -231,9 +233,9 @@ export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFo
     window.requestAnimationFrame(() => onValuesChange(readCurrentFormValues()));
   };
   const handleDelete = () => {
+    hapticNotification("warning");
     onDelete?.();
     reset(formDefaults);
-    setDeadlineInputValue(formDefaults.deadline_at);
     prevTypeRef.current = null;
     window.requestAnimationFrame(() => onValuesChange?.(formDefaults));
   };
@@ -254,17 +256,17 @@ export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFo
 
     if (selectedType === "deadline") {
       const currentDeadline = getValues("deadline_at");
-      const deadlineAt = currentDeadline || buildTodayDeadlineDefault();
+      const deadlineDate = currentDeadline || buildDeadlineDefault();
       if (!currentDeadline) {
-        setValue("deadline_at", deadlineAt);
+        setValue("deadline_at", deadlineDate);
       }
-      setDeadlineInputValue(deadlineAt);
-      setValue("reminder_mode", isTodayDeadline(deadlineAt) ? "once_at_time" : settings.default_deadline_reminder_mode);
-      setValue("reminder_time_local", isTodayDeadline(deadlineAt) ? deadlineAt.slice(11, 16) : settings.default_deadline_reminder_time_local);
+      // A deadline due today only makes sense as a one-off reminder at a chosen
+      // time; longer-horizon deadlines keep the user's default mode.
+      setValue("reminder_mode", isTodayDate(deadlineDate) ? "once_at_time" : settings.default_deadline_reminder_mode);
+      setValue("reminder_time_local", settings.default_deadline_reminder_time_local);
       setValue("reminder_interval_hours", settings.default_deadline_reminder_interval_hours);
     } else if (selectedType === "waiting") {
       setValue("deadline_at", "");
-      setDeadlineInputValue("");
       setValue("reminder_mode", settings.default_waiting_reminder_mode);
       setValue("reminder_time_local", settings.default_waiting_reminder_time_local);
       setValue("reminder_interval_hours", settings.default_waiting_reminder_interval_hours);
@@ -286,12 +288,13 @@ export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFo
     settings.default_waiting_reminder_time_local,
   ]);
 
+  // If the user picks today as the deadline date, force the one-off reminder mode.
   useEffect(() => {
-    if (selectedType !== "deadline" || !deadlineInputValue) return;
-    if (isTodayDeadline(deadlineInputValue) && selectedReminderMode !== "once_at_time") {
+    if (!deadlineIsToday) return;
+    if (selectedReminderMode !== "once_at_time") {
       setValue("reminder_mode", "once_at_time");
     }
-  }, [deadlineInputValue, selectedReminderMode, selectedType, setValue]);
+  }, [deadlineIsToday, selectedReminderMode, setValue]);
 
   return (
     <form
@@ -317,7 +320,9 @@ export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFo
             <Mic size={18} />
           </button>
         </div>
-        {formState.errors.title ? <span className="text-sm text-red-600">{formState.errors.title.message}</span> : null}
+        {formState.errors.title ? (
+          <span className="text-sm text-red-600">{t(formState.errors.title.message as TranslationKey)}</span>
+        ) : null}
       </label>
       <label>
         {t("description")}
@@ -352,7 +357,9 @@ export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFo
             <Mic size={18} />
           </button>
         </div>
-        {formState.errors.description ? <span className="text-sm text-red-600">{formState.errors.description.message}</span> : null}
+        {formState.errors.description ? (
+          <span className="text-sm text-red-600">{t(formState.errors.description.message as TranslationKey)}</span>
+        ) : null}
       </label>
       <label>
         {t("type")}
@@ -374,18 +381,11 @@ export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFo
       {selectedType === "deadline" && (
         <label>
           {t("deadlineLabel")}
-          <input
-            type="datetime-local"
-            {...deadlineField}
-            onChange={(event) => {
-              void deadlineField.onChange(event);
-              setDeadlineInputValue(event.currentTarget.value);
-            }}
-            onInput={(event) => {
-              setDeadlineInputValue(event.currentTarget.value);
-            }}
-          />
+          <input type="date" {...deadlineField} />
           <span className="field-hint">{t("timezone")}: {settings.timezone}</span>
+          {formState.errors.deadline_at ? (
+            <span className="text-sm text-red-600">{t(formState.errors.deadline_at.message as TranslationKey)}</span>
+          ) : null}
         </label>
       )}
 
@@ -430,7 +430,7 @@ export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFo
               <option value="RRULE:FREQ=MONTHLY">{t("monthly")}</option>
             </select>
             {formState.errors.recurrence_rule ? (
-              <span className="text-sm text-red-600">{formState.errors.recurrence_rule.message}</span>
+              <span className="text-sm text-red-600">{t(formState.errors.recurrence_rule.message as TranslationKey)}</span>
             ) : null}
           </label>
 
@@ -444,7 +444,7 @@ export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFo
       <div className={`task-form-actions${onDelete ? " has-delete" : ""}`}>
         {onDelete ? (
           <button type="button" className="danger" onClick={handleDelete} disabled={formState.isSubmitting}>
-            {t("delete")}
+            {t("discard")}
           </button>
         ) : null}
         <button type="submit" disabled={formState.isSubmitting}>

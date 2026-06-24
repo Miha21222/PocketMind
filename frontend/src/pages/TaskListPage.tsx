@@ -7,7 +7,7 @@ import { TaskType } from "../types/task";
 import { applyTaskFilters, TaskView } from "../features/tasks/selectors";
 import { useTasksAllQuery } from "../features/tasks/cache";
 
-const views = ["active", "completed", "cancelled"] as const;
+const views = ["active", "overdue", "completed", "cancelled"] as const;
 const typeFilters = ["all", "quick", "deadline", "no_deadline", "recurring", "waiting"] as const;
 
 export function TaskListPage() {
@@ -18,7 +18,13 @@ export function TaskListPage() {
   const filteredTasks = applyTaskFilters(tasksAllQuery.data ?? [], view as TaskView, taskType as TaskType | "all");
 
   const statusLabel = (item: (typeof views)[number]) =>
-    item === "active" ? t("active") : item === "completed" ? t("completed") : t("cancelled");
+    item === "active"
+      ? t("active")
+      : item === "overdue"
+        ? t("overdue")
+        : item === "completed"
+          ? t("completed")
+          : t("cancelled");
   const typeLabel = (item: (typeof typeFilters)[number]) =>
     item === "all"
       ? t("allTypes")
