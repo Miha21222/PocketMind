@@ -8,6 +8,14 @@ function isFinal(task: Task): boolean {
   return FINAL_STATUSES.includes(task.status);
 }
 
+// "Overdue" is a derived status: an active task whose deadline has already
+// passed. Shown as the task's status badge and offered as a status filter.
+export function isTaskOverdue(task: Task, now = Date.now()): boolean {
+  if (isFinal(task)) return false;
+  const deadlineTs = toTimestamp(task.deadline_at);
+  return deadlineTs !== null && deadlineTs < now;
+}
+
 function toTimestamp(value: string | null): number | null {
   if (!value) return null;
   const ts = new Date(value).getTime();
@@ -74,6 +82,38 @@ export function applyTaskFilters(tasks: Task[], view: TaskView, type: TaskType |
   return sortTasks(byType);
 }
 
-export function getDashboardTasks(tasks: Task[], view: Exclude<TaskView, "all" | "completed" | "cancelled">, limit = 5): Task[] {
-  return applyTaskFilters(tasks, view).slice(0, limit);
+export type DashboardView = "today" | "tomorrow" | "soon" | "overdue";
+
+// The instant a task is anchored to on the timeline: its reminder if it has
+// one, otherwise its deadline. Tasks without either have no place on the scale.
+export function primaryTaskInstant(task: Task): string | null {
+  return task.remind_at ?? task.deadline_at ?? null;
+}
+
+function primaryTaskTimestamp(task: Task): number | null {
+  return toTimestamp(task.remind_at) ?? toTimestamp(task.deadline_at);
+}
+
+export function getDashboardSchedule(tasks: Task[], view: DashboardView, now = new Date()): Task[] {
+  const nowTs = now.getTime();
+  const { start: todayStart, end: todayEnd } = getUtcDayRange(now);
+  const tomorrowEnd = todayEnd + 24 * 60 * 60 * 1000;
+
+  const filtered = tasks.filter((task) => {
+    if (isFinal(task)) return false;
+
+    if (view === "overdue") {
+      const deadlineTs = toTimestamp(task.deadline_at);
+      return deadlineTs !== null && deadlineTs < nowTs;
+    }
+
+    const primaryTs = primaryTaskTimestamp(task);
+    if (primaryTs === null) return false;
+    if (view === "today") return primaryTs >= todayStart && primaryTs < todayEnd;
+    if (view === "tomorrow") return primaryTs >= todayEnd && primaryTs < tomorrowEnd;
+    if (view === "soon") return primaryTs >= tomorrowEnd;
+    return false;
+  });
+
+  return sortTasks(filtered);
 }

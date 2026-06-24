@@ -22,7 +22,7 @@ def normalize_hhmm(value: str | None, fallback: str) -> str:
 
 
 def normalize_reminder_mode(value: str | None, fallback: str) -> str:
-    if value in {"none", "daily_at_time", "every_n_hours"}:
+    if value in {"none", "daily_at_time", "every_n_hours", "once_at_time"}:
         return value
     return fallback
 

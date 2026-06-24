@@ -1,6 +1,8 @@
-import { Link } from "react-router-dom";
+import { Pencil } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Task } from "../types/task";
 import { useAppSettings } from "../contexts/AppSettingsContext";
+import { isTaskOverdue } from "../features/tasks/selectors";
 import { formatInTimezone } from "../utils/dateTime";
 import { taskStatusLabel, taskTypeLabel } from "../utils/taskLabels";
 
@@ -10,16 +12,34 @@ type TaskCardProps = {
 
 export function TaskCard({ task }: TaskCardProps) {
   const { settings, t } = useAppSettings();
-  const isOverdue = task.deadline_at ? new Date(task.deadline_at).getTime() < Date.now() && task.status !== "done" : false;
+  const navigate = useNavigate();
+  const overdue = isTaskOverdue(task);
   const isFinal = task.status === "done" || task.status === "cancelled";
 
+  const open = () => navigate(`/tasks/${task.id}`);
+
   return (
-    <article className={`task-card rounded-soft bg-white p-4 shadow-card ${isOverdue ? "overdue border border-rose-300" : ""}`}>
+    <article
+      className={`task-card is-clickable rounded-soft bg-white p-4 shadow-card ${overdue ? "overdue border border-rose-300" : ""}`}
+      role="button"
+      tabIndex={0}
+      onClick={open}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          open();
+        }
+      }}
+    >
       <div className="task-title-row">
         <h3>{task.title}</h3>
-        <span className={`status ${task.status}`}>{taskStatusLabel(task.status, t)}</span>
+        {overdue ? (
+          <span className="status overdue">{t("overdue")}</span>
+        ) : (
+          <span className={`status ${task.status}`}>{taskStatusLabel(task.status, t)}</span>
+        )}
       </div>
-      <p className="task-type text-sm text-slate-600">{taskTypeLabel(task.type, t)}</p>
+      {task.description ? <p className="task-card-desc">{task.description}</p> : null}
       {!isFinal && task.remind_at ? (
         <p className="task-date">
           {t("reminderTime")}: {formatInTimezone(task.remind_at, settings.timezone, settings.language)}
@@ -30,14 +50,23 @@ export function TaskCard({ task }: TaskCardProps) {
           {t("deadlineLabel")}: {formatInTimezone(task.deadline_at, settings.timezone, settings.language)}
         </p>
       ) : null}
-      <div className="task-actions">
-        <Link to={`/tasks/${task.id}`} className="link-btn">
-          {t("open")}
-        </Link>
+      <div className="task-card-footer">
+        <span className="task-type-chip">{taskTypeLabel(task.type, t)}</span>
         {!isFinal && (
-          <Link to={`/tasks/${task.id}/edit`} className="link-btn ghost">
-            {t("edit")}
-          </Link>
+          <div className="task-card-actions">
+            <button
+              type="button"
+              className="icon-btn ghost"
+              aria-label={t("edit")}
+              title={t("edit")}
+              onClick={(event) => {
+                event.stopPropagation();
+                navigate(`/tasks/${task.id}/edit`);
+              }}
+            >
+              <Pencil size={20} aria-hidden="true" />
+            </button>
+          </div>
         )}
       </div>
     </article>

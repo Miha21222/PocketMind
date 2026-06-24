@@ -28,6 +28,7 @@ class ReminderMode(str, enum.Enum):
     none = "none"
     daily_at_time = "daily_at_time"
     every_n_hours = "every_n_hours"
+    once_at_time = "once_at_time"
 
 
 class Task(Base):

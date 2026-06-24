@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAppSettings } from "../contexts/AppSettingsContext";
 import { useToast } from "../contexts/ToastContext";
+import { hapticImpact, hapticNotification, useHapticsEnabled } from "../utils/haptics";
 import { UserSettings } from "../types/settings";
 
 const SNOOZE_OPTIONS = [5, 10, 15, 20, 30, 45, 60, 90, 120];
@@ -23,10 +24,31 @@ export function SettingsPage() {
   const { showToast } = useToast();
   const [draft, setDraft] = useState<UserSettings>(settings);
   const [isSaving, setIsSaving] = useState(false);
+  const [hapticsEnabled, setHapticsEnabled] = useHapticsEnabled();
+  const [draftHapticsEnabled, setDraftHapticsEnabled] = useState(hapticsEnabled);
 
   useEffect(() => {
     setDraft(settings);
   }, [settings]);
+
+  useEffect(() => {
+    setDraftHapticsEnabled(hapticsEnabled);
+  }, [hapticsEnabled]);
+
+  const settingsPatch = useMemo(() => buildSettingsPatch(settings, draft), [settings, draft]);
+  const hasSettingsChanges = Object.keys(settingsPatch).length > 0;
+  const hasHapticsChanges = draftHapticsEnabled !== hapticsEnabled;
+  const hasUnsavedChanges = hasSettingsChanges || hasHapticsChanges;
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   const timezoneSelectOptions = useMemo(
     () => (timezoneOptions.includes(draft.timezone) ? timezoneOptions : [draft.timezone, ...timezoneOptions]),
@@ -34,27 +56,43 @@ export function SettingsPage() {
   );
 
   const handleSave = async () => {
-    const patch = buildSettingsPatch(settings, draft);
-    if (Object.keys(patch).length === 0) {
+    if (!hasUnsavedChanges) {
       showToast({ tone: "info", message: t("settingsSaved") });
       return;
     }
 
     setIsSaving(true);
     try {
-      await updateSettings(patch);
+      if (hasSettingsChanges) {
+        await updateSettings(settingsPatch);
+      }
+      if (hasHapticsChanges) {
+        setHapticsEnabled(draftHapticsEnabled);
+      }
+      hapticNotification("success");
       showToast({ tone: "success", message: t("settingsSaved") });
     } catch {
       setDraft(settings);
+      setDraftHapticsEnabled(hapticsEnabled);
+      hapticNotification("error");
       showToast({ tone: "error", message: t("settingsSaveError") });
     } finally {
       setIsSaving(false);
     }
   };
 
+  const handleDiscard = () => {
+    setDraft(settings);
+    setDraftHapticsEnabled(hapticsEnabled);
+    hapticImpact("light");
+  };
+
+  const toggleHaptics = () => {
+    setDraftHapticsEnabled((current) => !current);
+  };
+
   return (
     <section className="grid-section">
-      <div className="tasks-title-pill">{t("settings")}</div>
       <div className="task-form">
         <label>
           {t("defaultSnooze")}
@@ -98,9 +136,36 @@ export function SettingsPage() {
           </select>
         </label>
 
-        <button type="button" disabled={isSaving} onClick={handleSave}>
-          {isSaving ? t("saving") : t("saveSettings")}
-        </button>
+        <div className="settings-toggle-row">
+          <span>{t("haptics")}</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={draftHapticsEnabled}
+            aria-label={t("haptics")}
+            className={`toggle-switch${draftHapticsEnabled ? " on" : ""}`}
+            onClick={toggleHaptics}
+          >
+            <span className="toggle-knob" aria-hidden="true" />
+          </button>
+        </div>
+
+        {hasUnsavedChanges ? (
+          <div className="settings-unsaved-alert" role="status">
+            <div>
+              <strong>{t("unsavedSettingsTitle")}</strong>
+              <p>{t("unsavedSettingsBody")}</p>
+            </div>
+            <div className="settings-unsaved-actions">
+              <button type="button" disabled={isSaving} onClick={handleSave}>
+                {isSaving ? t("saving") : t("save")}
+              </button>
+              <button type="button" className="ghost" disabled={isSaving} onClick={handleDiscard}>
+                {t("discard")}
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
     </section>
   );

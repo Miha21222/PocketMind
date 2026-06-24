@@ -1,8 +1,18 @@
+export type TelegramHapticImpactStyle = "light" | "medium" | "heavy" | "rigid" | "soft";
+export type TelegramHapticNotificationType = "error" | "success" | "warning";
+
+export interface TelegramHapticFeedback {
+  impactOccurred?: (style: TelegramHapticImpactStyle) => void;
+  notificationOccurred?: (type: TelegramHapticNotificationType) => void;
+  selectionChanged?: () => void;
+}
+
 export interface TelegramWebAppControls {
   initData?: string;
   isVersionAtLeast?: (version: string) => boolean;
   ready?: () => void;
   expand?: () => void;
+  HapticFeedback?: TelegramHapticFeedback;
 }
 
 interface TelegramWindow extends Window {

@@ -42,6 +42,15 @@ function nextDailyReminder(nowMs: number, hhmm: string): string {
   return toIso(new Date(candidate));
 }
 
+function oneTimeReminderOnDeadline(deadlineAt: string | null, hhmm: string | null): string | null {
+  if (!deadlineAt || !hhmm) return null;
+  const candidate = new Date(deadlineAt);
+  if (Number.isNaN(candidate.getTime())) return null;
+  const [hours, minutes] = hhmm.split(":").map((part) => Number(part));
+  candidate.setHours(hours || 0, minutes || 0, 0, 0);
+  return toIso(candidate);
+}
+
 function nextRecurringReminder(nowMs: number, recurrenceRule: string | null, hhmm: string | null): string | null {
   if (!recurrenceRule || !hhmm) return null;
   const upperRule = recurrenceRule.toUpperCase();
@@ -92,7 +101,7 @@ function applyTiming(task: LocalTask, settings: UserSettings, now = new Date()):
     next.recurrence_rule = null;
     next.remind_at = toIso(new Date(nowMs + settings.default_quick_delay_minutes * MINUTE_MS));
     if (next.status !== "done" && next.status !== "cancelled") {
-      next.status = "planned";
+      next.status = "active";
     }
     return next;
   }
@@ -106,11 +115,14 @@ function applyTiming(task: LocalTask, settings: UserSettings, now = new Date()):
     } else if (next.reminder_mode === "every_n_hours") {
       const hours = next.reminder_interval_hours ?? 4;
       next.remind_at = capByDeadline(toIso(new Date(nowMs + hours * HOUR_MS)), next.deadline_at);
+    } else if (next.reminder_mode === "once_at_time") {
+      const candidate = oneTimeReminderOnDeadline(next.deadline_at, next.reminder_time_local);
+      next.remind_at = candidate && timestampOrZero(candidate) > nowMs ? capByDeadline(candidate, next.deadline_at) : null;
     } else {
       next.remind_at = null;
     }
     if (next.status !== "done" && next.status !== "cancelled") {
-      next.status = next.remind_at ? "planned" : "new";
+      next.status = "active";
     }
     return next;
   }
@@ -121,7 +133,7 @@ function applyTiming(task: LocalTask, settings: UserSettings, now = new Date()):
     next.reminder_interval_hours = null;
     next.remind_at = nextRecurringReminder(nowMs, next.recurrence_rule, next.reminder_time_local);
     if (next.status !== "done" && next.status !== "cancelled") {
-      next.status = next.remind_at ? "planned" : "new";
+      next.status = "active";
     }
     return next;
   }
@@ -154,7 +166,7 @@ export function buildTaskFromPayload(payload: LocalTaskMutationPayload, settings
       title: payload.title,
       description: payload.description ?? "",
       type: payload.type,
-      status: "new",
+      status: "active",
       deadline_at: payload.deadline_at ?? null,
       remind_at: null,
       reminder_mode: payload.reminder_mode ?? "none",
@@ -202,7 +214,7 @@ export function markLocalTaskDone(task: LocalTask, settings: UserSettings, now =
     if (nextReminder) {
       return {
         ...task,
-        status: "planned",
+        status: "active",
         remind_at: nextReminder,
         snoozed_until: null,
         completed_at: nowIso,
@@ -278,7 +290,7 @@ export function mergeRemoteTaskIntoLocal(localTask: LocalTask, remoteTask: SyncT
     last_reminded_at: remoteTask.last_reminded_at,
     deleted_at: remoteTask.deleted_at,
     snoozed_until:
-      remoteTask.status === "snoozed" || remoteTask.status === "planned"
+      remoteTask.status === "snoozed" || remoteTask.status === "planned" || remoteTask.status === "active"
         ? remoteTask.remind_at
         : localTask.snoozed_until,
   };

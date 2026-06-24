@@ -7,10 +7,11 @@ import { TaskForm, TaskFormValues } from "../components/TaskForm";
 import { useAppSettings } from "../contexts/AppSettingsContext";
 import { useToast } from "../contexts/ToastContext";
 import { mergeTaskIntoCache, scheduleTasksBackgroundRefresh, updateTaskInCache, useTasksAllQuery } from "../features/tasks/cache";
-import { fromLocalDateTimeInput, toLocalDateTimeInput } from "../utils/dateTime";
+import { fromLocalDateInput, toLocalDateInput } from "../utils/dateTime";
+import { hapticNotification } from "../utils/haptics";
 
-function toIsoOrNull(value: string): string | null {
-  return fromLocalDateTimeInput(value);
+function usesReminderTime(values: TaskFormValues): boolean {
+  return values.type === "recurring" || values.reminder_mode === "daily_at_time" || values.reminder_mode === "once_at_time";
 }
 
 export function TaskEditPage() {
@@ -52,7 +53,7 @@ export function TaskEditPage() {
     title: task.title,
     description: task.description ?? "",
     type: task.type,
-    deadline_at: toLocalDateTimeInput(task.deadline_at),
+    deadline_at: toLocalDateInput(task.deadline_at),
     recurrence_rule: task.recurrence_rule ?? "",
     reminder_mode: task.reminder_mode ?? "daily_at_time",
     reminder_time_local: task.reminder_time_local ?? "09:00",
@@ -64,26 +65,26 @@ export function TaskEditPage() {
       title: values.title,
       description: values.description || null,
       type: values.type,
-      deadline_at: toIsoOrNull(values.deadline_at),
+      deadline_at: values.type === "deadline" ? fromLocalDateInput(values.deadline_at) : null,
       reminder_mode: values.type === "deadline" || values.type === "waiting" ? values.reminder_mode : null,
-      reminder_time_local:
-        values.type === "recurring" || values.reminder_mode === "daily_at_time" ? values.reminder_time_local || null : null,
+      reminder_time_local: usesReminderTime(values) ? values.reminder_time_local || null : null,
       reminder_interval_hours:
         values.type !== "recurring" && values.reminder_mode === "every_n_hours" ? values.reminder_interval_hours : null,
       recurrence_rule: values.type === "recurring" ? values.recurrence_rule || null : null,
     };
     try {
       await updateMutation.mutateAsync(payload);
+      hapticNotification("success");
       showToast({ tone: "success", message: t("taskUpdated") });
       navigate(`/tasks/${taskId}`);
     } catch {
+      hapticNotification("error");
       showToast({ tone: "error", message: t("taskUpdateFailed") });
     }
   };
 
   return (
     <section className="grid-section">
-      <div className="tasks-title-pill">{t("editTask")}</div>
       <TaskForm initial={initial} onSubmit={handleSubmit} />
     </section>
   );

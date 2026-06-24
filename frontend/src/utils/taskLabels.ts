@@ -16,14 +16,10 @@ export function taskTypeLabel(type: TaskType, t: Translator): string {
 }
 
 export function taskStatusLabel(status: TaskStatus, t: Translator): string {
-  const labels: Record<TaskStatus, TranslationKey> = {
-    new: "taskStatusNew",
-    planned: "taskStatusPlanned",
-    reminded: "taskStatusReminded",
-    snoozed: "taskStatusSnoozed",
-    done: "taskStatusDone",
-    cancelled: "taskStatusCancelled",
-  };
-
-  return t(labels[status]);
+  // A task stays "active" until it is snoozed, completed or cancelled. The
+  // legacy new/planned/reminded values collapse into the same active label.
+  if (status === "snoozed") return t("taskStatusSnoozed");
+  if (status === "done") return t("taskStatusDone");
+  if (status === "cancelled") return t("taskStatusCancelled");
+  return t("taskStatusActive");
 }

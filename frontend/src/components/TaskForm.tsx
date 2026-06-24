@@ -4,10 +4,29 @@ import { useForm } from "react-hook-form";
 import { Loader2, Mic, Square } from "lucide-react";
 import { z } from "zod";
 import { useAppSettings } from "../contexts/AppSettingsContext";
+import { hapticNotification } from "../utils/haptics";
 import { useVoiceInput, type VoiceInput } from "../hooks/useVoiceInput";
 import { TranslationKey } from "../i18n/translations";
 import { TaskReminderMode, TaskType } from "../types/task";
 import { estimateTextareaRows } from "./textareaAutosize";
+
+function toLocalDateTimeInputValue(date: Date): string {
+  const timezoneOffset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
+}
+
+function todayDatePart(): string {
+  return toLocalDateTimeInputValue(new Date()).slice(0, 10);
+}
+
+// Deadlines are date-only; default to today's local date.
+function buildDeadlineDefault(): string {
+  return todayDatePart();
+}
+
+function isTodayDate(value: string): boolean {
+  return Boolean(value) && value.slice(0, 10) === todayDatePart();
+}
 
 function VoiceRecorderModal({
   voice,
@@ -84,16 +103,20 @@ export interface TaskFormValues {
 interface TaskFormProps {
   initial?: Partial<TaskFormValues>;
   onSubmit: (values: TaskFormValues) => Promise<void>;
+  onValuesChange?: (values: TaskFormValues) => void;
+  onDelete?: () => void;
 }
 
+// Validation messages are stored as i18n keys and translated at render time, so
+// they always follow the currently selected language.
 const taskFormSchema = z
   .object({
-    title: z.string().trim().min(1, "Title is required").max(255, "Title is too long"),
-    description: z.string().max(5000, "Description is too long"),
+    title: z.string().trim().min(1, "errorTitleRequired").max(255, "errorTitleTooLong"),
+    description: z.string().max(5000, "errorDescriptionTooLong"),
     type: z.enum(["quick", "deadline", "no_deadline", "recurring", "waiting"]),
     deadline_at: z.string(),
     recurrence_rule: z.string(),
-    reminder_mode: z.enum(["none", "daily_at_time", "every_n_hours"]),
+    reminder_mode: z.enum(["none", "daily_at_time", "every_n_hours", "once_at_time"]),
     reminder_time_local: z.string(),
     reminder_interval_hours: z.number().int().min(1).max(24),
   })
@@ -101,34 +124,38 @@ const taskFormSchema = z
     if (values.type === "recurring" && !values.recurrence_rule) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Recurrence is required for recurring task",
+        message: "errorRecurrenceRequired",
         path: ["recurrence_rule"],
       });
     }
     if (values.type === "deadline" && !values.deadline_at) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Deadline is required for deadline tasks",
+        message: "errorDeadlineRequired",
         path: ["deadline_at"],
       });
     }
-    if ((values.type === "deadline" || values.type === "waiting") && values.reminder_mode === "daily_at_time" && !values.reminder_time_local) {
+    if (
+      (values.type === "deadline" || values.type === "waiting") &&
+      (values.reminder_mode === "daily_at_time" || values.reminder_mode === "once_at_time") &&
+      !values.reminder_time_local
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Time is required",
+        message: "errorTimeRequired",
         path: ["reminder_time_local"],
       });
     }
     if (values.type === "recurring" && !values.reminder_time_local) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Reminder time is required",
+        message: "errorReminderTimeRequired",
         path: ["reminder_time_local"],
       });
     }
   });
 
-export function TaskForm({ initial, onSubmit }: TaskFormProps) {
+export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFormProps) {
   const { t, settings } = useAppSettings();
   const formDefaults = useMemo<TaskFormValues>(
     () => ({
@@ -143,13 +170,16 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
     }),
     [settings.default_deadline_reminder_interval_hours, settings.default_deadline_reminder_mode, settings.default_deadline_reminder_time_local],
   );
-  const { register, handleSubmit, watch, formState, setValue, getValues } = useForm<TaskFormValues>({
+  const { register, handleSubmit, watch, formState, setValue, getValues, reset } = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
     defaultValues: { ...formDefaults, ...initial },
   });
   const selectedType = watch("type");
   const selectedReminderMode = watch("reminder_mode");
+  const deadlineValue = watch("deadline_at");
+  const deadlineIsToday = selectedType === "deadline" && isTodayDate(deadlineValue);
   const descriptionField = register("description");
+  const deadlineField = register("deadline_at");
   const {
     ref: descriptionRegisterRef,
     onBlur: handleDescriptionBlur,
@@ -157,6 +187,7 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
     ...descriptionInputProps
   } = descriptionField;
   const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
   const [descriptionRows, setDescriptionRows] = useState(4);
   const descriptionValue = watch("description");
 
@@ -177,6 +208,43 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
     setValue(field, current ? `${current} ${text}` : text, { shouldValidate: true });
   };
   const prevTypeRef = useRef<TaskType | null>(null);
+  const readCurrentFormValues = (): TaskFormValues => {
+    const current = getValues();
+    if (!formRef.current) return current;
+
+    const formData = new FormData(formRef.current);
+    const textValue = (key: keyof TaskFormValues) => String(formData.get(key) ?? current[key] ?? "");
+    const intervalValue = Number(formData.get("reminder_interval_hours"));
+
+    return {
+      ...current,
+      title: textValue("title"),
+      description: textValue("description"),
+      type: textValue("type") as TaskType,
+      deadline_at: textValue("deadline_at"),
+      recurrence_rule: textValue("recurrence_rule"),
+      reminder_mode: textValue("reminder_mode") as TaskReminderMode,
+      reminder_time_local: textValue("reminder_time_local"),
+      reminder_interval_hours: Number.isFinite(intervalValue) && intervalValue > 0 ? intervalValue : current.reminder_interval_hours,
+    };
+  };
+  const notifyValuesChange = () => {
+    if (!onValuesChange) return;
+    window.requestAnimationFrame(() => onValuesChange(readCurrentFormValues()));
+  };
+  const handleDelete = () => {
+    hapticNotification("warning");
+    onDelete?.();
+    reset(formDefaults);
+    prevTypeRef.current = null;
+    window.requestAnimationFrame(() => onValuesChange?.(formDefaults));
+  };
+
+  useEffect(() => {
+    if (!onValuesChange) return undefined;
+    const subscription = watch(() => onValuesChange(getValues()));
+    return () => subscription.unsubscribe();
+  }, [getValues, onValuesChange, watch]);
 
   useEffect(() => {
     if (prevTypeRef.current === null) {
@@ -187,10 +255,18 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
     prevTypeRef.current = selectedType;
 
     if (selectedType === "deadline") {
-      setValue("reminder_mode", settings.default_deadline_reminder_mode);
+      const currentDeadline = getValues("deadline_at");
+      const deadlineDate = currentDeadline || buildDeadlineDefault();
+      if (!currentDeadline) {
+        setValue("deadline_at", deadlineDate);
+      }
+      // A deadline due today only makes sense as a one-off reminder at a chosen
+      // time; longer-horizon deadlines keep the user's default mode.
+      setValue("reminder_mode", isTodayDate(deadlineDate) ? "once_at_time" : settings.default_deadline_reminder_mode);
       setValue("reminder_time_local", settings.default_deadline_reminder_time_local);
       setValue("reminder_interval_hours", settings.default_deadline_reminder_interval_hours);
     } else if (selectedType === "waiting") {
+      setValue("deadline_at", "");
       setValue("reminder_mode", settings.default_waiting_reminder_mode);
       setValue("reminder_time_local", settings.default_waiting_reminder_time_local);
       setValue("reminder_interval_hours", settings.default_waiting_reminder_interval_hours);
@@ -201,6 +277,7 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
     }
   }, [
     selectedType,
+    getValues,
     setValue,
     settings.default_deadline_reminder_interval_hours,
     settings.default_deadline_reminder_mode,
@@ -211,9 +288,20 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
     settings.default_waiting_reminder_time_local,
   ]);
 
+  // If the user picks today as the deadline date, force the one-off reminder mode.
+  useEffect(() => {
+    if (!deadlineIsToday) return;
+    if (selectedReminderMode !== "once_at_time") {
+      setValue("reminder_mode", "once_at_time");
+    }
+  }, [deadlineIsToday, selectedReminderMode, setValue]);
+
   return (
     <form
+      ref={formRef}
       className="task-form rounded-soft bg-white p-4 shadow-card"
+      onInputCapture={notifyValuesChange}
+      onChangeCapture={notifyValuesChange}
       onSubmit={handleSubmit(async (values) => {
         await onSubmit(values);
       })}
@@ -232,7 +320,9 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
             <Mic size={18} />
           </button>
         </div>
-        {formState.errors.title ? <span className="text-sm text-red-600">{formState.errors.title.message}</span> : null}
+        {formState.errors.title ? (
+          <span className="text-sm text-red-600">{t(formState.errors.title.message as TranslationKey)}</span>
+        ) : null}
       </label>
       <label>
         {t("description")}
@@ -267,7 +357,9 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
             <Mic size={18} />
           </button>
         </div>
-        {formState.errors.description ? <span className="text-sm text-red-600">{formState.errors.description.message}</span> : null}
+        {formState.errors.description ? (
+          <span className="text-sm text-red-600">{t(formState.errors.description.message as TranslationKey)}</span>
+        ) : null}
       </label>
       <label>
         {t("type")}
@@ -289,31 +381,29 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
       {selectedType === "deadline" && (
         <label>
           {t("deadlineLabel")}
-          <input type="datetime-local" {...register("deadline_at")} />
+          <input type="date" {...deadlineField} />
           <span className="field-hint">{t("timezone")}: {settings.timezone}</span>
-        </label>
-      )}
-
-      {selectedType === "waiting" && (
-        <label>
-          {t("deadlineOptional")}
-          <input type="datetime-local" {...register("deadline_at")} />
-          <span className="field-hint">{t("timezone")}: {settings.timezone}</span>
+          {formState.errors.deadline_at ? (
+            <span className="text-sm text-red-600">{t(formState.errors.deadline_at.message as TranslationKey)}</span>
+          ) : null}
         </label>
       )}
 
       {(selectedType === "deadline" || selectedType === "waiting") && (
         <>
-          <label>
-            {t("reminderMode")}
-            <select {...register("reminder_mode")}>
-              <option value="none">{t("reminderModeNone")}</option>
-              <option value="daily_at_time">{t("reminderModeDaily")}</option>
-              <option value="every_n_hours">{t("reminderModeInterval")}</option>
-            </select>
-          </label>
+          {deadlineIsToday ? null : (
+            <label>
+              {t("reminderMode")}
+              <select {...register("reminder_mode")}>
+                <option value="none">{t("reminderModeNone")}</option>
+                <option value="once_at_time">{t("reminderModeOnce")}</option>
+                <option value="daily_at_time">{t("reminderModeDaily")}</option>
+                <option value="every_n_hours">{t("reminderModeInterval")}</option>
+              </select>
+            </label>
+          )}
 
-          {selectedReminderMode === "daily_at_time" && (
+          {(selectedReminderMode === "daily_at_time" || selectedReminderMode === "once_at_time") && (
             <label>
               {t("reminderAtTime")}
               <input type="time" {...register("reminder_time_local")} />
@@ -340,7 +430,7 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
               <option value="RRULE:FREQ=MONTHLY">{t("monthly")}</option>
             </select>
             {formState.errors.recurrence_rule ? (
-              <span className="text-sm text-red-600">{formState.errors.recurrence_rule.message}</span>
+              <span className="text-sm text-red-600">{t(formState.errors.recurrence_rule.message as TranslationKey)}</span>
             ) : null}
           </label>
 
@@ -351,9 +441,16 @@ export function TaskForm({ initial, onSubmit }: TaskFormProps) {
         </>
       )}
 
-      <button type="submit" disabled={formState.isSubmitting}>
-        {formState.isSubmitting ? t("saving") : t("saveTask")}
-      </button>
+      <div className={`task-form-actions${onDelete ? " has-delete" : ""}`}>
+        {onDelete ? (
+          <button type="button" className="danger" onClick={handleDelete} disabled={formState.isSubmitting}>
+            {t("discard")}
+          </button>
+        ) : null}
+        <button type="submit" disabled={formState.isSubmitting}>
+          {formState.isSubmitting ? t("saving") : t("save")}
+        </button>
+      </div>
 
       {voiceTarget ? (
         <VoiceRecorderModal

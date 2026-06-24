@@ -1,27 +1,48 @@
-import { PropsWithChildren } from "react";
-import { Link, NavLink } from "react-router-dom";
-import { House, Languages, ListTodo, PlusSquare, Settings as SettingsIcon } from "lucide-react";
+import { PropsWithChildren, useEffect, useState } from "react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { ArrowLeft, FileText, House, Languages, ListTodo, PlusSquare, Settings as SettingsIcon } from "lucide-react";
 import { useAppSettings } from "../contexts/AppSettingsContext";
 import { useToast } from "../contexts/ToastContext";
+import { hasTaskCreateDraft, TASK_CREATE_DRAFT_UPDATED_EVENT } from "../features/tasks/taskCreateDraft";
+import { hapticImpact, hapticSelection } from "../utils/haptics";
+import { TranslationKey } from "../i18n/translations";
 import { AppLanguage } from "../types/settings";
 
 const LANGUAGE_CYCLE: AppLanguage[] = ["en", "ru", "uk"];
 
+// The three destinations reachable from the bottom navigation are "roots" and
+// never show the floating back button.
+const ROOT_PATHS = ["/", "/tasks", "/settings"];
+
 export function Layout({ children }: PropsWithChildren) {
   const { settings, setLanguage, t } = useAppSettings();
   const { showToast } = useToast();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const pageTitle = getPageTitle(location.pathname, t);
+  const [hasCreateDraft, setHasCreateDraft] = useState(() => hasTaskCreateDraft());
+  const isTaskCreatePage = location.pathname === "/tasks/new";
+  const showBackButton = !ROOT_PATHS.includes(location.pathname);
+  const FloatingCreateIcon = hasCreateDraft ? FileText : PlusSquare;
+
+  useEffect(() => {
+    setHasCreateDraft(hasTaskCreateDraft());
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const syncDraftState = () => setHasCreateDraft(hasTaskCreateDraft());
+    window.addEventListener(TASK_CREATE_DRAFT_UPDATED_EVENT, syncDraftState);
+    return () => window.removeEventListener(TASK_CREATE_DRAFT_UPDATED_EVENT, syncDraftState);
+  }, []);
 
   return (
     <div className="app-shell font-sans">
       <header className="app-header">
         <div className="header-top-row">
-          <Link to="/" className="brand flex items-center gap-3">
+          <Link to="/" className="header-logo-link" aria-label={t("home")}>
             <img src={`${import.meta.env.BASE_URL}logo.png`} alt="PocketMind" className="brand-logo h-14 w-14 rounded-2xl" />
-            <div>
-              <div className="brand-title text-lg font-extrabold text-pmblue-700">{t("appTitle")}</div>
-              <div className="brand-subtitle text-sm text-slate-500">{t("appSubtitle")}</div>
-            </div>
           </Link>
+          <h1 className="header-page-title">{pageTitle}</h1>
           <button
             type="button"
             className="lang-switch-btn ghost"
@@ -30,6 +51,7 @@ export function Layout({ children }: PropsWithChildren) {
               try {
                 const next = LANGUAGE_CYCLE[(LANGUAGE_CYCLE.indexOf(settings.language) + 1) % LANGUAGE_CYCLE.length];
                 await setLanguage(next);
+                hapticSelection();
                 showToast({ tone: "success", message: t("languageUpdated") });
               } catch {
                 showToast({ tone: "error", message: t("settingsSaveError") });
@@ -44,6 +66,32 @@ export function Layout({ children }: PropsWithChildren) {
 
       <main className="app-content">{children}</main>
 
+      {showBackButton && (
+        <button
+          type="button"
+          className="floating-back-btn"
+          aria-label={t("back")}
+          title={t("back")}
+          onClick={() => {
+            hapticImpact("light");
+            navigate(-1);
+          }}
+        >
+          <ArrowLeft size={34} />
+        </button>
+      )}
+
+      {!isTaskCreatePage && (
+        <Link
+          to="/tasks/new"
+          className={`floating-create-btn${hasCreateDraft ? " has-draft" : ""}`}
+          aria-label={t("newTask")}
+          title={t("newTask")}
+        >
+          <FloatingCreateIcon size={34} />
+        </Link>
+      )}
+
       <nav className="bottom-nav">
         <NavLink
           to="/"
@@ -51,7 +99,7 @@ export function Layout({ children }: PropsWithChildren) {
           className={({ isActive }) => (isActive ? "active rounded-xl bg-pmgreen-200 text-emerald-800 font-extrabold" : "")}
           aria-label={t("home")}
         >
-          <House size={22} />
+          <House size={28} />
         </NavLink>
         <NavLink
           to="/tasks"
@@ -59,23 +107,24 @@ export function Layout({ children }: PropsWithChildren) {
           className={({ isActive }) => (isActive ? "active rounded-xl bg-pmgreen-200 text-emerald-800 font-extrabold" : "")}
           aria-label={t("tasks")}
         >
-          <ListTodo size={22} />
-        </NavLink>
-        <NavLink
-          to="/tasks/new"
-          className={({ isActive }) => (isActive ? "active rounded-xl bg-pmgreen-200 text-emerald-800 font-extrabold" : "")}
-          aria-label={t("newTask")}
-        >
-          <PlusSquare size={22} />
+          <ListTodo size={28} />
         </NavLink>
         <NavLink
           to="/settings"
           className={({ isActive }) => (isActive ? "active rounded-xl bg-pmgreen-200 text-emerald-800 font-extrabold" : "")}
           aria-label={t("settings")}
         >
-          <SettingsIcon size={22} />
+          <SettingsIcon size={28} />
         </NavLink>
       </nav>
     </div>
   );
+}
+
+function getPageTitle(pathname: string, t: (key: TranslationKey) => string): string {
+  if (pathname === "/tasks/new") return t("createTask");
+  if (/^\/tasks\/[^/]+\/edit$/.test(pathname)) return t("editTask");
+  if (pathname.startsWith("/tasks")) return t("tasks");
+  if (pathname === "/settings") return t("settings");
+  return t("dashboard");
 }
