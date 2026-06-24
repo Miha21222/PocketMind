@@ -50,11 +50,12 @@ export function TaskCreatePage() {
     }
   };
   const handleDraftChange = useCallback((values: TaskFormValues) => writeTaskCreateDraft(values), []);
+  const handleDeleteDraft = useCallback(() => clearTaskCreateDraft(), []);
 
   return (
     <section className="grid-section">
       {createMutation.error && <p className="error">{t("failedCreateTask")}</p>}
-      <TaskForm initial={draftInitial} onSubmit={handleSubmit} onValuesChange={handleDraftChange} />
+      <TaskForm initial={draftInitial} onSubmit={handleSubmit} onValuesChange={handleDraftChange} onDelete={handleDeleteDraft} />
     </section>
   );
 }

@@ -85,6 +85,7 @@ interface TaskFormProps {
   initial?: Partial<TaskFormValues>;
   onSubmit: (values: TaskFormValues) => Promise<void>;
   onValuesChange?: (values: TaskFormValues) => void;
+  onDelete?: () => void;
 }
 
 const taskFormSchema = z
@@ -129,7 +130,7 @@ const taskFormSchema = z
     }
   });
 
-export function TaskForm({ initial, onSubmit, onValuesChange }: TaskFormProps) {
+export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFormProps) {
   const { t, settings } = useAppSettings();
   const formDefaults = useMemo<TaskFormValues>(
     () => ({
@@ -144,7 +145,7 @@ export function TaskForm({ initial, onSubmit, onValuesChange }: TaskFormProps) {
     }),
     [settings.default_deadline_reminder_interval_hours, settings.default_deadline_reminder_mode, settings.default_deadline_reminder_time_local],
   );
-  const { register, handleSubmit, watch, formState, setValue, getValues } = useForm<TaskFormValues>({
+  const { register, handleSubmit, watch, formState, setValue, getValues, reset } = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
     defaultValues: { ...formDefaults, ...initial },
   });
@@ -202,6 +203,12 @@ export function TaskForm({ initial, onSubmit, onValuesChange }: TaskFormProps) {
   const notifyValuesChange = () => {
     if (!onValuesChange) return;
     window.requestAnimationFrame(() => onValuesChange(readCurrentFormValues()));
+  };
+  const handleDelete = () => {
+    onDelete?.();
+    reset(formDefaults);
+    prevTypeRef.current = null;
+    window.requestAnimationFrame(() => onValuesChange?.(formDefaults));
   };
 
   useEffect(() => {
@@ -386,9 +393,16 @@ export function TaskForm({ initial, onSubmit, onValuesChange }: TaskFormProps) {
         </>
       )}
 
-      <button type="submit" disabled={formState.isSubmitting}>
-        {formState.isSubmitting ? t("saving") : t("saveTask")}
-      </button>
+      <div className={`task-form-actions${onDelete ? " has-delete" : ""}`}>
+        {onDelete ? (
+          <button type="button" className="danger" onClick={handleDelete} disabled={formState.isSubmitting}>
+            {t("delete")}
+          </button>
+        ) : null}
+        <button type="submit" disabled={formState.isSubmitting}>
+          {formState.isSubmitting ? t("saving") : t("save")}
+        </button>
+      </div>
 
       {voiceTarget ? (
         <VoiceRecorderModal

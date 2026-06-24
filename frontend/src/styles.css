@@ -385,6 +385,20 @@ button.ghost,
   resize: none;
 }
 
+.task-form-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.task-form-actions.has-delete {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.task-form-actions button {
+  width: 100%;
+}
+
 .field-hint {
   font-size: 0.8rem;
   color: var(--pm-muted);

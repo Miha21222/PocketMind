@@ -33,7 +33,9 @@ export type TranslationKey =
   | "taskNotFound"
   | "editTask"
   | "createTask"
+  | "save"
   | "saveTask"
+  | "delete"
   | "title"
   | "description"
   | "reminderTime"
@@ -134,7 +136,9 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     taskNotFound: "Task not found",
     editTask: "Edit Task",
     createTask: "Create Task",
+    save: "Save",
     saveTask: "Save task",
+    delete: "Delete",
     title: "Title",
     description: "Description",
     reminderTime: "Reminder",
@@ -234,7 +238,9 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     taskNotFound: "Задача не найдена",
     editTask: "Редактировать задачу",
     createTask: "Создать задачу",
+    save: "Сохранить",
     saveTask: "Сохранить задачу",
+    delete: "Удалить",
     title: "Заголовок",
     description: "Описание",
     reminderTime: "Напоминание",
@@ -334,7 +340,9 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     taskNotFound: "Завдання не знайдено",
     editTask: "Редагувати завдання",
     createTask: "Створити завдання",
+    save: "Зберегти",
     saveTask: "Зберегти завдання",
+    delete: "Видалити",
     title: "Заголовок",
     description: "Опис",
     reminderTime: "Нагадування",
