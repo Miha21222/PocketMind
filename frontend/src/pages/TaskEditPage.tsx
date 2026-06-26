@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTask, updateTask } from "../api/tasks";
 import { LoadingState } from "../components/LoadingState";
@@ -9,6 +9,7 @@ import { useToast } from "../contexts/ToastContext";
 import { mergeTaskIntoCache, scheduleTasksBackgroundRefresh, updateTaskInCache, useTasksAllQuery } from "../features/tasks/cache";
 import { fromLocalDateInput, toLocalDateInput } from "../utils/dateTime";
 import { hapticNotification } from "../utils/haptics";
+import { getTaskEditSaveDestination, TaskEditNavigationState } from "../utils/taskNavigation";
 
 function usesReminderTime(values: TaskFormValues): boolean {
   return values.type === "recurring" || values.reminder_mode === "daily_at_time" || values.reminder_mode === "once_at_time";
@@ -17,10 +18,12 @@ function usesReminderTime(values: TaskFormValues): boolean {
 export function TaskEditPage() {
   const { t, settings } = useAppSettings();
   const { showToast } = useToast();
+  const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const params = useParams();
   const taskId = params.taskId ?? "";
+  const returnTo = (location.state as TaskEditNavigationState | null)?.returnTo;
   const isValidTaskId = taskId.length > 0;
   const tasksAllQuery = useTasksAllQuery();
   const taskFromCache = (tasksAllQuery.data ?? []).find((task) => task.id === taskId);
@@ -53,7 +56,7 @@ export function TaskEditPage() {
     title: task.title,
     description: task.description ?? "",
     type: task.type,
-    deadline_at: toLocalDateInput(task.deadline_at),
+    deadline_at: toLocalDateInput(task.deadline_at, settings.timezone),
     recurrence_rule: task.recurrence_rule ?? "",
     reminder_mode: task.reminder_mode ?? "daily_at_time",
     reminder_time_local: task.reminder_time_local ?? "09:00",
@@ -65,7 +68,7 @@ export function TaskEditPage() {
       title: values.title,
       description: values.description || null,
       type: values.type,
-      deadline_at: values.type === "deadline" ? fromLocalDateInput(values.deadline_at) : null,
+      deadline_at: values.type === "deadline" ? fromLocalDateInput(values.deadline_at, settings.timezone) : null,
       reminder_mode: values.type === "deadline" || values.type === "waiting" ? values.reminder_mode : null,
       reminder_time_local: usesReminderTime(values) ? values.reminder_time_local || null : null,
       reminder_interval_hours:
@@ -76,7 +79,12 @@ export function TaskEditPage() {
       await updateMutation.mutateAsync(payload);
       hapticNotification("success");
       showToast({ tone: "success", message: t("taskUpdated") });
-      navigate(`/tasks/${taskId}`);
+      const destination = getTaskEditSaveDestination(taskId, returnTo);
+      if (destination === -1) {
+        navigate(-1);
+      } else {
+        navigate(destination.path, { replace: destination.replace });
+      }
     } catch {
       hapticNotification("error");
       showToast({ tone: "error", message: t("taskUpdateFailed") });

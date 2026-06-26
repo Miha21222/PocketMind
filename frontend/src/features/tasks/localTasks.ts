@@ -1,5 +1,6 @@
 import type { UserSettings } from "../../types/settings";
 import type { LocalTask, SyncTaskRecord, TaskReminderMode, TaskStatus, TaskType } from "../../types/task";
+import { addDaysToDayKey, addMonthsToDayKey, zonedDateTimeToUtcTimestamp, zonedDayKeyFromTimestamp } from "../../utils/dateTime";
 
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
@@ -27,59 +28,52 @@ function generateTaskId(): string {
   return `task-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
 }
 
-function combineDateAndTime(dateMs: number, hhmm: string): number {
-  const date = new Date(dateMs);
-  const [hours, minutes] = hhmm.split(":").map((part) => Number(part));
-  date.setUTCHours(hours || 0, minutes || 0, 0, 0);
-  return date.getTime();
-}
-
-function nextDailyReminder(nowMs: number, hhmm: string): string {
-  let candidate = combineDateAndTime(nowMs, hhmm);
+function nextDailyReminder(nowMs: number, hhmm: string, timezone: string): string | null {
+  const todayKey = zonedDayKeyFromTimestamp(nowMs, timezone);
+  let candidate = zonedDateTimeToUtcTimestamp(todayKey, hhmm, timezone);
+  if (candidate === null) return null;
   if (candidate <= nowMs) {
-    candidate += DAY_MS;
+    candidate = zonedDateTimeToUtcTimestamp(addDaysToDayKey(todayKey, 1), hhmm, timezone);
   }
-  return toIso(new Date(candidate));
+  return candidate === null ? null : toIso(new Date(candidate));
 }
 
-function oneTimeReminderOnDeadline(deadlineAt: string | null, hhmm: string | null): string | null {
+function oneTimeReminderOnDeadline(deadlineAt: string | null, hhmm: string | null, timezone: string): string | null {
   if (!deadlineAt || !hhmm) return null;
-  const candidate = new Date(deadlineAt);
-  if (Number.isNaN(candidate.getTime())) return null;
-  const [hours, minutes] = hhmm.split(":").map((part) => Number(part));
-  candidate.setHours(hours || 0, minutes || 0, 0, 0);
-  return toIso(candidate);
+  const deadlineTs = parseIso(deadlineAt);
+  if (deadlineTs === null) return null;
+  const deadlineDay = zonedDayKeyFromTimestamp(deadlineTs, timezone);
+  const candidate = zonedDateTimeToUtcTimestamp(deadlineDay, hhmm, timezone);
+  return candidate === null ? null : toIso(new Date(candidate));
 }
 
-function nextRecurringReminder(nowMs: number, recurrenceRule: string | null, hhmm: string | null): string | null {
+function nextRecurringReminder(nowMs: number, recurrenceRule: string | null, hhmm: string | null, timezone: string): string | null {
   if (!recurrenceRule || !hhmm) return null;
   const upperRule = recurrenceRule.toUpperCase();
   if (upperRule.includes("FREQ=DAILY")) {
-    return nextDailyReminder(nowMs, hhmm);
+    return nextDailyReminder(nowMs, hhmm, timezone);
   }
   if (upperRule.includes("FREQ=WEEKLY")) {
-    let candidate = nextDailyReminder(nowMs, hhmm);
+    let candidate = nextDailyReminder(nowMs, hhmm, timezone);
     const weekdayMatch = upperRule.match(/BYDAY=(MO|TU|WE|TH|FR|SA|SU)/);
     if (!weekdayMatch) return candidate;
     const targetMap: Record<string, number> = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
     const target = targetMap[weekdayMatch[1]];
-    const candidateDate = new Date(candidate);
-    const currentDay = candidateDate.getUTCDay();
+    const candidateTs = timestampOrZero(candidate);
+    const candidateDay = zonedDayKeyFromTimestamp(candidateTs, timezone);
+    const currentDay = new Date(`${candidateDay}T00:00:00.000Z`).getUTCDay();
     const delta = (target - currentDay + 7) % 7;
-    candidateDate.setUTCDate(candidateDate.getUTCDate() + delta);
-    candidate = toIso(candidateDate);
-    if (timestampOrZero(candidate) <= nowMs) {
-      candidateDate.setUTCDate(candidateDate.getUTCDate() + 7);
-      candidate = toIso(candidateDate);
-    }
-    return candidate;
+    const shifted = zonedDateTimeToUtcTimestamp(addDaysToDayKey(candidateDay, delta), hhmm, timezone);
+    return shifted === null ? null : toIso(new Date(shifted));
   }
   if (upperRule.includes("FREQ=MONTHLY")) {
-    const candidateDate = new Date(nextDailyReminder(nowMs, hhmm));
-    if (candidateDate.getTime() <= nowMs) {
-      candidateDate.setUTCMonth(candidateDate.getUTCMonth() + 1);
+    const todayKey = zonedDayKeyFromTimestamp(nowMs, timezone);
+    const todayCandidate = zonedDateTimeToUtcTimestamp(todayKey, hhmm, timezone);
+    if (todayCandidate !== null && todayCandidate > nowMs) {
+      return toIso(new Date(todayCandidate));
     }
-    return toIso(candidateDate);
+    const shifted = zonedDateTimeToUtcTimestamp(addMonthsToDayKey(todayKey, 1), hhmm, timezone);
+    return shifted === null ? null : toIso(new Date(shifted));
   }
   return null;
 }
@@ -109,14 +103,14 @@ function applyTiming(task: LocalTask, settings: UserSettings, now = new Date()):
   if (next.type === "deadline" || next.type === "waiting") {
     if (next.reminder_mode === "daily_at_time") {
       next.remind_at = capByDeadline(
-        next.reminder_time_local ? nextDailyReminder(nowMs, next.reminder_time_local) : null,
+        next.reminder_time_local ? nextDailyReminder(nowMs, next.reminder_time_local, settings.timezone) : null,
         next.deadline_at,
       );
     } else if (next.reminder_mode === "every_n_hours") {
       const hours = next.reminder_interval_hours ?? 4;
       next.remind_at = capByDeadline(toIso(new Date(nowMs + hours * HOUR_MS)), next.deadline_at);
     } else if (next.reminder_mode === "once_at_time") {
-      const candidate = oneTimeReminderOnDeadline(next.deadline_at, next.reminder_time_local);
+      const candidate = oneTimeReminderOnDeadline(next.deadline_at, next.reminder_time_local, settings.timezone);
       next.remind_at = candidate && timestampOrZero(candidate) > nowMs ? capByDeadline(candidate, next.deadline_at) : null;
     } else {
       next.remind_at = null;
@@ -131,7 +125,7 @@ function applyTiming(task: LocalTask, settings: UserSettings, now = new Date()):
     next.deadline_at = null;
     next.reminder_mode = "none";
     next.reminder_interval_hours = null;
-    next.remind_at = nextRecurringReminder(nowMs, next.recurrence_rule, next.reminder_time_local);
+    next.remind_at = nextRecurringReminder(nowMs, next.recurrence_rule, next.reminder_time_local, settings.timezone);
     if (next.status !== "done" && next.status !== "cancelled") {
       next.status = "active";
     }
@@ -210,7 +204,7 @@ export function updateLocalTask(localTask: LocalTask, payload: LocalTaskMutation
 export function markLocalTaskDone(task: LocalTask, settings: UserSettings, now = new Date()): LocalTask {
   const nowIso = toIso(now);
   if (task.type === "recurring" && task.recurrence_rule) {
-    const nextReminder = nextRecurringReminder(now.getTime(), task.recurrence_rule, task.reminder_time_local);
+    const nextReminder = nextRecurringReminder(now.getTime(), task.recurrence_rule, task.reminder_time_local, settings.timezone);
     if (nextReminder) {
       return {
         ...task,

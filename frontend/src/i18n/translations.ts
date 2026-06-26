@@ -26,6 +26,7 @@ export type TranslationKey =
   | "completed"
   | "cancelled"
   | "allTypes"
+  | "clear"
   | "quick"
   | "deadline"
   | "recurring"
@@ -143,6 +144,7 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     completed: "Completed",
     cancelled: "Cancelled",
     allTypes: "All types",
+    clear: "Clear",
     quick: "Quick",
     deadline: "Deadline",
     recurring: "Recurring",
@@ -259,6 +261,7 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     completed: "Выполненные",
     cancelled: "Отменённые",
     allTypes: "Все типы",
+    clear: "Сбросить",
     quick: "Быстрая",
     deadline: "Дедлайн",
     recurring: "Повторяющаяся",
@@ -375,6 +378,7 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     completed: "Виконані",
     cancelled: "Скасовані",
     allTypes: "Усі типи",
+    clear: "Скинути",
     quick: "Швидка",
     deadline: "Дедлайн",
     recurring: "Повторювана",

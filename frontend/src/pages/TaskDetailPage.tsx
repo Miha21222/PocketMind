@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ListTodo, Pencil, X } from "lucide-react";
 import { getTask } from "../api/tasks";
@@ -9,10 +9,12 @@ import { mergeTaskIntoCache, useTasksAllQuery } from "../features/tasks/cache";
 import { isTaskOverdue } from "../features/tasks/selectors";
 import { useTaskActions } from "../features/tasks/useTaskActions";
 import { formatInTimezone } from "../utils/dateTime";
+import { TaskEditNavigationState } from "../utils/taskNavigation";
 import { taskStatusLabel, taskTypeLabel } from "../utils/taskLabels";
 
 export function TaskDetailPage() {
   const { settings, t } = useAppSettings();
+  const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const params = useParams();
@@ -107,7 +109,10 @@ export function TaskDetailPage() {
               className="icon-btn ghost"
               aria-label={t("edit")}
               title={t("edit")}
-              onClick={() => navigate(`/tasks/${task.id}/edit`)}
+              onClick={() => {
+                const state: TaskEditNavigationState = { returnTo: location.pathname };
+                navigate(`/tasks/${task.id}/edit`, { state });
+              }}
             >
               <Pencil size={22} aria-hidden="true" />
             </button>
