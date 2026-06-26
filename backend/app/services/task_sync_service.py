@@ -2,12 +2,12 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from app.models.task import ReminderMode, Task, TaskStatus, TaskType
-from app.models.user import User
 from app.schemas.sync import SyncTaskRecord, SyncTaskUpsert
 from app.services.reminder_planning_service import next_recurrence_reminder, next_strategy_reminder
 from app.services.user_settings_service import (
     clamp_int,
     normalize_hhmm,
+    normalize_language,
     normalize_reminder_mode,
     normalize_timezone,
 )
@@ -26,9 +26,17 @@ def ensure_client_task_id(task: Task) -> None:
         task.client_task_id = str(uuid4())
 
 
-def apply_timing_by_type(task: Task, current_user: User, now: datetime, reset_quick_timer: bool = False) -> None:
-    timezone = normalize_timezone(current_user.preferred_timezone)
+# Static fallbacks used only when a task omits a reminder field. The client
+# normally sends concrete reminder fields (it owns all settings), so these are
+# rarely hit; they exist so the backend never depends on per-user settings.
+_DEFAULT_QUICK_DELAY_MINUTES = 10
+_DEFAULT_DEADLINE_TIME = "09:00"
+_DEFAULT_WAITING_TIME = "10:00"
+_DEFAULT_RECURRING_TIME = "09:00"
+_DEFAULT_INTERVAL_HOURS = 4
 
+
+def apply_timing_by_type(task: Task, timezone: str, now: datetime, reset_quick_timer: bool = False) -> None:
     if task.type == TaskType.quick:
         task.reminder_mode = ReminderMode.none
         task.reminder_time_local = None
@@ -36,25 +44,16 @@ def apply_timing_by_type(task: Task, current_user: User, now: datetime, reset_qu
         task.deadline_at = None
         task.recurrence_rule = None
         if reset_quick_timer or task.remind_at is None:
-            quick_delay = clamp_int(current_user.default_quick_delay_minutes, 10, 5, 240)
-            task.remind_at = now + timedelta(minutes=quick_delay)
+            task.remind_at = now + timedelta(minutes=_DEFAULT_QUICK_DELAY_MINUTES)
         if task.status not in {TaskStatus.done, TaskStatus.cancelled}:
             task.status = TaskStatus.planned
         return
 
     if task.type == TaskType.deadline:
-        mode = normalize_reminder_mode(
-            task.reminder_mode.value if task.reminder_mode else None,
-            current_user.default_deadline_reminder_mode,
-        )
+        mode = normalize_reminder_mode(task.reminder_mode.value if task.reminder_mode else None, "daily_at_time")
         task.reminder_mode = ReminderMode(mode)
-        task.reminder_time_local = normalize_hhmm(task.reminder_time_local, current_user.default_deadline_reminder_time_local)
-        task.reminder_interval_hours = clamp_int(
-            task.reminder_interval_hours,
-            current_user.default_deadline_reminder_interval_hours,
-            1,
-            24,
-        )
+        task.reminder_time_local = normalize_hhmm(task.reminder_time_local, _DEFAULT_DEADLINE_TIME)
+        task.reminder_interval_hours = clamp_int(task.reminder_interval_hours, _DEFAULT_INTERVAL_HOURS, 1, 24)
         task.remind_at = next_strategy_reminder(
             now_utc=now,
             timezone=timezone,
@@ -68,18 +67,10 @@ def apply_timing_by_type(task: Task, current_user: User, now: datetime, reset_qu
         return
 
     if task.type == TaskType.waiting:
-        mode = normalize_reminder_mode(
-            task.reminder_mode.value if task.reminder_mode else None,
-            current_user.default_waiting_reminder_mode,
-        )
+        mode = normalize_reminder_mode(task.reminder_mode.value if task.reminder_mode else None, "daily_at_time")
         task.reminder_mode = ReminderMode(mode)
-        task.reminder_time_local = normalize_hhmm(task.reminder_time_local, current_user.default_waiting_reminder_time_local)
-        task.reminder_interval_hours = clamp_int(
-            task.reminder_interval_hours,
-            current_user.default_waiting_reminder_interval_hours,
-            1,
-            24,
-        )
+        task.reminder_time_local = normalize_hhmm(task.reminder_time_local, _DEFAULT_WAITING_TIME)
+        task.reminder_interval_hours = clamp_int(task.reminder_interval_hours, _DEFAULT_INTERVAL_HOURS, 1, 24)
         task.remind_at = next_strategy_reminder(
             now_utc=now,
             timezone=timezone,
@@ -96,7 +87,7 @@ def apply_timing_by_type(task: Task, current_user: User, now: datetime, reset_qu
         task.reminder_mode = ReminderMode.none
         task.reminder_interval_hours = None
         task.deadline_at = None
-        task.reminder_time_local = normalize_hhmm(task.reminder_time_local, current_user.default_recurring_reminder_time_local)
+        task.reminder_time_local = normalize_hhmm(task.reminder_time_local, _DEFAULT_RECURRING_TIME)
         task.remind_at = next_recurrence_reminder(
             now_utc=now,
             timezone=timezone,
@@ -116,7 +107,7 @@ def apply_timing_by_type(task: Task, current_user: User, now: datetime, reset_qu
         task.status = TaskStatus.new
 
 
-def apply_sync_payload(task: Task, payload: SyncTaskUpsert, current_user: User, now: datetime | None = None) -> None:
+def apply_sync_payload(task: Task, payload: SyncTaskUpsert, now: datetime | None = None) -> None:
     effective_now = now or datetime.now(UTC)
     ensure_client_task_id(task)
     task.title = payload.title
@@ -129,6 +120,11 @@ def apply_sync_payload(task: Task, payload: SyncTaskUpsert, current_user: User, 
     task.reminder_time_local = payload.reminder_time_local
     task.reminder_interval_hours = payload.reminder_interval_hours
     task.recurrence_rule = payload.recurrence_rule
+    # Per-task settings snapshot. normalize_timezone always yields a valid zone
+    # (falls back to DEFAULT_TIMEZONE), so reminder math below never lacks one.
+    task.reminder_timezone = normalize_timezone(payload.reminder_timezone)
+    task.reminder_language = normalize_language(payload.reminder_language) if payload.reminder_language else None
+    task.snooze_minutes = clamp_int(payload.snooze_minutes, 15, 5, 240) if payload.snooze_minutes is not None else None
     task.deleted_at = ensure_utc_datetime(payload.deleted_at)
     task.updated_at = ensure_utc_datetime(payload.updated_at) or effective_now
 
@@ -140,7 +136,7 @@ def apply_sync_payload(task: Task, payload: SyncTaskUpsert, current_user: User, 
         return
 
     reset_quick_timer = task.type == TaskType.quick and payload.remind_at is None
-    apply_timing_by_type(task, current_user=current_user, now=effective_now, reset_quick_timer=reset_quick_timer)
+    apply_timing_by_type(task, timezone=task.reminder_timezone, now=effective_now, reset_quick_timer=reset_quick_timer)
 
 
 def mark_sync_task_deleted(task: Task, deleted_at: datetime | None = None) -> None:

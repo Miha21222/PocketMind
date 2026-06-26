@@ -108,9 +108,10 @@ BOT_I18N: dict[str, dict[str, str]] = {
 
 
 def resolve_user_language(user: User | None, telegram_language_code: str | None = None) -> str:
-    preferred = user.preferred_language if user else None
+    # Per-task language snapshots drive reminder text; this only covers messages
+    # with no task in scope (e.g. /start, /help), so Telegram's locale is enough.
     fallback = telegram_language_code or (user.language_code if user else None)
-    return normalize_language(preferred or fallback)
+    return normalize_language(fallback)
 
 
 def t(lang: str, key: str, **kwargs) -> str:

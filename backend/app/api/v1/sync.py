@@ -83,7 +83,7 @@ async def upsert_sync_task(
         )
         db.add(task)
 
-    apply_sync_payload(task, payload=payload, current_user=current_user)
+    apply_sync_payload(task, payload=payload)
     await db.commit()
     await db.refresh(task)
     return SyncTaskUpsertResponse(applied=True, task=to_sync_record(task))
@@ -126,7 +126,7 @@ async def sync_batch(
                 status=item.status,
             )
             db.add(existing)
-        apply_sync_payload(existing, payload=SyncTaskUpsert(**item.model_dump(exclude={"client_task_id"})), current_user=current_user)
+        apply_sync_payload(existing, payload=SyncTaskUpsert(**item.model_dump(exclude={"client_task_id"})))
 
     await db.commit()
     return await bootstrap_sync(db=db, current_user=current_user)

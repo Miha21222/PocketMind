@@ -11,7 +11,6 @@ from app.db.session import get_db
 from app.models.user import User
 from app.schemas.auth import AuthResponse, TelegramAuthRequest
 from app.schemas.user import UserOut
-from app.services.user_settings_service import build_user_settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -45,17 +44,6 @@ async def auth_telegram(payload: TelegramAuthRequest, db: AsyncSession = Depends
             first_name=tg_user.get("first_name"),
             last_name=tg_user.get("last_name"),
             language_code=tg_user.get("language_code"),
-            preferred_language=None,
-            preferred_timezone=None,
-            default_snooze_minutes=15,
-            default_quick_delay_minutes=10,
-            default_deadline_reminder_mode="daily_at_time",
-            default_deadline_reminder_time_local="09:00",
-            default_deadline_reminder_interval_hours=4,
-            default_waiting_reminder_mode="daily_at_time",
-            default_waiting_reminder_time_local="10:00",
-            default_waiting_reminder_interval_hours=4,
-            default_recurring_reminder_time_local="09:00",
             last_seen_at=now,
         )
         db.add(user)
@@ -70,5 +58,4 @@ async def auth_telegram(payload: TelegramAuthRequest, db: AsyncSession = Depends
     await db.refresh(user)
 
     token = create_access_token(subject=str(user.id))
-    user_out = UserOut.model_validate(user).model_copy(update={"settings": build_user_settings(user)})
-    return AuthResponse(access_token=token, user=user_out)
+    return AuthResponse(access_token=token, user=UserOut.model_validate(user))

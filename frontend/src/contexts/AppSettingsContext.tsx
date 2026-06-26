@@ -1,8 +1,14 @@
-import { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { getMySettings, updateMySettings } from "../api/settings";
+import { createContext, PropsWithChildren, useContext, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { translations, TranslationKey } from "../i18n/translations";
 import { AppLanguage, UserSettings } from "../types/settings";
+import { getEffectiveSettings, writeStoredSettings } from "../features/settings/localSettings";
+import { TASKS_SYNC_QUERY_KEY } from "../features/tasks/cache";
+
+// Settings are client-owned and live in localStorage only — they never sync to
+// the backend. Each task instead carries a snapshot of the reminder-shaping
+// values in its own sync payload (see localTaskRepository), so changing a setting
+// is a pure local write with no awaited request and no failure path.
 
 type AppSettingsContextValue = {
   settings: UserSettings;
@@ -11,41 +17,6 @@ type AppSettingsContextValue = {
   setLanguage: (language: AppLanguage) => Promise<void>;
   updateSettings: (patch: Partial<UserSettings>) => Promise<void>;
   timezoneOptions: string[];
-};
-
-const TIMEZONE_ALIASES: Record<string, string> = {
-  "Europe/Kiev": "Europe/Kyiv",
-  "Europe/Uzhgorod": "Europe/Kyiv",
-  "Europe/Zaporozhye": "Europe/Kyiv",
-  "Asia/Calcutta": "Asia/Kolkata",
-  "Asia/Saigon": "Asia/Ho_Chi_Minh",
-  "Asia/Rangoon": "Asia/Yangon",
-};
-
-// Auto-detect the user's IANA timezone, normalizing legacy aliases to the
-// canonical names returned by Intl.supportedValuesOf. Falls back to Europe/Kyiv.
-function detectTimezone(): string {
-  try {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (!tz) return "Europe/Kyiv";
-    return TIMEZONE_ALIASES[tz] ?? tz;
-  } catch {
-    return "Europe/Kyiv";
-  }
-}
-
-const DEFAULT_SETTINGS: UserSettings = {
-  language: "en",
-  timezone: detectTimezone(),
-  default_snooze_minutes: 15,
-  default_quick_delay_minutes: 10,
-  default_deadline_reminder_mode: "daily_at_time",
-  default_deadline_reminder_time_local: "09:00",
-  default_deadline_reminder_interval_hours: 4,
-  default_waiting_reminder_mode: "daily_at_time",
-  default_waiting_reminder_time_local: "10:00",
-  default_waiting_reminder_interval_hours: 4,
-  default_recurring_reminder_time_local: "09:00",
 };
 
 const AppSettingsContext = createContext<AppSettingsContextValue | null>(null);
@@ -72,70 +43,30 @@ const COMMON_TIMEZONES = [
   "Asia/Tashkent",
 ];
 
-type ProviderProps = {
-  initialSettings?: UserSettings | null;
-};
-
-export function AppSettingsProvider({ children, initialSettings }: PropsWithChildren<ProviderProps>) {
-  const [settings, setSettings] = useState<UserSettings>({ ...DEFAULT_SETTINGS, ...(initialSettings ?? {}) });
-  const settingsQuery = useQuery({
-    queryKey: ["settings", "me"],
-    queryFn: getMySettings,
-    enabled: !initialSettings,
-  });
-  useEffect(() => {
-    if (settingsQuery.data) {
-      setSettings({ ...DEFAULT_SETTINGS, ...settingsQuery.data });
-    }
-  }, [settingsQuery.data]);
+export function AppSettingsProvider({ children }: PropsWithChildren) {
+  const queryClient = useQueryClient();
+  const [settings, setSettings] = useState<UserSettings>(() => getEffectiveSettings());
   const timezoneOptions = COMMON_TIMEZONES;
-  const updateMutation = useMutation({
-    mutationFn: (patch: Partial<UserSettings>) =>
-      updateMySettings({
-        language: patch.language,
-        timezone: patch.timezone,
-        default_snooze_minutes: patch.default_snooze_minutes,
-        default_quick_delay_minutes: patch.default_quick_delay_minutes,
-        default_deadline_reminder_mode: patch.default_deadline_reminder_mode,
-        default_deadline_reminder_time_local: patch.default_deadline_reminder_time_local,
-        default_deadline_reminder_interval_hours: patch.default_deadline_reminder_interval_hours,
-        default_waiting_reminder_mode: patch.default_waiting_reminder_mode,
-        default_waiting_reminder_time_local: patch.default_waiting_reminder_time_local,
-        default_waiting_reminder_interval_hours: patch.default_waiting_reminder_interval_hours,
-        default_recurring_reminder_time_local: patch.default_recurring_reminder_time_local,
-      }),
-    onSuccess: (fresh) => setSettings(fresh),
-  });
 
-  const value = useMemo<AppSettingsContextValue>(
-    () => ({
+  const value = useMemo<AppSettingsContextValue>(() => {
+    const persist = (next: UserSettings) => {
+      setSettings(next);
+      writeStoredSettings(next);
+      // Tasks embed a settings snapshot when they sync; re-sync so a changed
+      // value (e.g. a new timezone) propagates to already-stored tasks now
+      // rather than waiting for the next app open.
+      void queryClient.invalidateQueries({ queryKey: TASKS_SYNC_QUERY_KEY });
+    };
+
+    return {
       settings,
-      pending: updateMutation.isPending,
+      pending: false,
       t: (key: TranslationKey) => translations[settings.language]?.[key] ?? translations.en[key] ?? key,
-      setLanguage: async (language: AppLanguage) => {
-        const prev = settings;
-        setSettings({ ...settings, language });
-        try {
-          await updateMutation.mutateAsync({ language });
-        } catch {
-          setSettings(prev);
-          throw new Error("language_save_failed");
-        }
-      },
-      updateSettings: async (patch: Partial<UserSettings>) => {
-        const prev = settings;
-        setSettings({ ...settings, ...patch });
-        try {
-          await updateMutation.mutateAsync(patch);
-        } catch {
-          setSettings(prev);
-          throw new Error("settings_save_failed");
-        }
-      },
+      setLanguage: async (language: AppLanguage) => persist({ ...settings, language }),
+      updateSettings: async (patch: Partial<UserSettings>) => persist({ ...settings, ...patch }),
       timezoneOptions,
-    }),
-    [settings, timezoneOptions, updateMutation],
-  );
+    };
+  }, [settings, timezoneOptions, queryClient]);
 
   return <AppSettingsContext.Provider value={value}>{children}</AppSettingsContext.Provider>;
 }

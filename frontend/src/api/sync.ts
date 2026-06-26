@@ -12,6 +12,11 @@ export interface SyncTaskPayload {
   reminder_time_local: string | null;
   reminder_interval_hours: number | null;
   recurrence_rule: string | null;
+  // Client-captured snapshot of the user's reminder-shaping settings, so the
+  // backend can compute/fire this task's reminders without storing any settings.
+  reminder_timezone: string;
+  reminder_language: string;
+  snooze_minutes: number;
   updated_at: string;
   deleted_at: string | null;
 }

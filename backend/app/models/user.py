@@ -14,18 +14,10 @@ class User(Base):
     username: Mapped[str | None] = mapped_column(String(255), nullable=True)
     first_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Telegram-provided locale only. All user preferences (timezone, app language,
+    # reminder defaults) live in the client's localStorage and ride along with each
+    # task as a snapshot — the backend stores no user settings of its own.
     language_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    preferred_language: Mapped[str | None] = mapped_column(String(8), nullable=True)
-    preferred_timezone: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    default_snooze_minutes: Mapped[int] = mapped_column(default=15, nullable=False)
-    default_quick_delay_minutes: Mapped[int] = mapped_column(default=10, nullable=False)
-    default_deadline_reminder_mode: Mapped[str] = mapped_column(String(32), default="daily_at_time", nullable=False)
-    default_deadline_reminder_time_local: Mapped[str] = mapped_column(String(5), default="09:00", nullable=False)
-    default_deadline_reminder_interval_hours: Mapped[int] = mapped_column(default=4, nullable=False)
-    default_waiting_reminder_mode: Mapped[str] = mapped_column(String(32), default="daily_at_time", nullable=False)
-    default_waiting_reminder_time_local: Mapped[str] = mapped_column(String(5), default="10:00", nullable=False)
-    default_waiting_reminder_interval_hours: Mapped[int] = mapped_column(default=4, nullable=False)
-    default_recurring_reminder_time_local: Mapped[str] = mapped_column(String(5), default="09:00", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

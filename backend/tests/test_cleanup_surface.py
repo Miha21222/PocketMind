@@ -35,6 +35,12 @@ class CleanupSurfaceTests(unittest.TestCase):
         response = self.client.get("/api/v1/internal/cron/reminders")
         self.assertEqual(response.status_code, 404)
 
+    def test_settings_api_is_gone(self) -> None:
+        # Settings now live entirely in the client's localStorage; the backend
+        # exposes no settings surface.
+        self.assertEqual(self.client.get("/api/v1/settings/me").status_code, 404)
+        self.assertEqual(self.client.patch("/api/v1/settings/me", json={}).status_code, 404)
+
     def test_reminder_open_button_uses_client_task_id(self) -> None:
         keyboard = reminder_keyboard(task_id=77, open_task_id="task-uuid-123", lang="en", default_snooze_minutes=15)
         open_row = keyboard.inline_keyboard[-1][0]

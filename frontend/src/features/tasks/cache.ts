@@ -4,6 +4,7 @@ import { listTasks, syncTasksWithBackend } from "../../api/tasks";
 import { Task } from "../../types/task";
 
 export const TASKS_ALL_QUERY_KEY = ["tasks", "all"] as const;
+export const TASKS_SYNC_QUERY_KEY = ["tasks", "sync"] as const;
 let tasksRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function useTasksAllQuery(enabled = true) {
@@ -17,7 +18,7 @@ export function useTasksAllQuery(enabled = true) {
     enabled,
   });
   const syncQuery = useQuery({
-    queryKey: ["tasks", "sync"],
+    queryKey: TASKS_SYNC_QUERY_KEY,
     queryFn: syncTasksWithBackend,
     enabled,
     staleTime: 0,

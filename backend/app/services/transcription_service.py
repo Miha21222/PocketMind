@@ -1,21 +1,27 @@
 import logging
 import tempfile
 from functools import lru_cache
-
-from faster_whisper import WhisperModel
+from typing import TYPE_CHECKING
 
 from app.core.config import get_settings
+
+if TYPE_CHECKING:
+    from faster_whisper import WhisperModel
 
 logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
-def _get_model() -> WhisperModel:
+def _get_model() -> "WhisperModel":
     """Load the Whisper model once and reuse it across requests.
 
     The model is baked into the image under ``whisper_download_root`` at build
-    time, so this loads from local files without a network call.
+    time, so this loads from local files without a network call. The heavy
+    ``faster_whisper`` import is deferred to here so the API/bot/scheduler
+    processes (which never transcribe) don't require the package at import time.
     """
+    from faster_whisper import WhisperModel
+
     settings = get_settings()
     logger.info(
         "Loading Whisper model '%s' (device=%s, compute=%s)",
