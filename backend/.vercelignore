@@ -1,7 +1,0 @@
-.venv
-.npm-cache
-.localappdata
-.xdgdata
-__pycache__
-*.pyc
-data

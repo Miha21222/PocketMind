@@ -1,8 +1,6 @@
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.core.config import get_settings
-from app.models.user import User
-from app.schemas.settings import UserSettingsOut
 
 
 def normalize_hhmm(value: str | None, fallback: str) -> str:
@@ -53,30 +51,3 @@ def normalize_timezone(value: str | None) -> str:
         return value
     except ZoneInfoNotFoundError:
         return fallback
-
-
-def build_user_settings(user: User) -> UserSettingsOut:
-    language = normalize_language(user.preferred_language or user.language_code)
-    timezone = normalize_timezone(user.preferred_timezone)
-    snooze_minutes = clamp_int(user.default_snooze_minutes, 15, 5, 240)
-    quick_delay = clamp_int(user.default_quick_delay_minutes, 10, 5, 240)
-    deadline_mode = normalize_reminder_mode(user.default_deadline_reminder_mode, "daily_at_time")
-    deadline_time = normalize_hhmm(user.default_deadline_reminder_time_local, "09:00")
-    deadline_interval = clamp_int(user.default_deadline_reminder_interval_hours, 4, 1, 24)
-    waiting_mode = normalize_reminder_mode(user.default_waiting_reminder_mode, "daily_at_time")
-    waiting_time = normalize_hhmm(user.default_waiting_reminder_time_local, "10:00")
-    waiting_interval = clamp_int(user.default_waiting_reminder_interval_hours, 4, 1, 24)
-    recurring_time = normalize_hhmm(user.default_recurring_reminder_time_local, "09:00")
-    return UserSettingsOut(
-        language=language,
-        timezone=timezone,
-        default_snooze_minutes=snooze_minutes,
-        default_quick_delay_minutes=quick_delay,
-        default_deadline_reminder_mode=deadline_mode,
-        default_deadline_reminder_time_local=deadline_time,
-        default_deadline_reminder_interval_hours=deadline_interval,
-        default_waiting_reminder_mode=waiting_mode,
-        default_waiting_reminder_time_local=waiting_time,
-        default_waiting_reminder_interval_hours=waiting_interval,
-        default_recurring_reminder_time_local=recurring_time,
-    )

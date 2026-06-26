@@ -1,4 +1,5 @@
 import { bootstrapSync, deleteSyncTask, syncTask, syncTaskBatch, type SyncTaskPayload } from "../../api/sync";
+import { getEffectiveSettings } from "../settings/localSettings";
 import type { UserSettings } from "../../types/settings";
 import type { LocalTask, Task, TaskListResponse } from "../../types/task";
 import {
@@ -40,6 +41,9 @@ function replaceTask(tasks: LocalTask[], task: LocalTask): LocalTask[] {
 }
 
 function toSyncPayload(task: LocalTask): SyncTaskPayload {
+  // Stamp the task with the current settings snapshot so the backend can compute
+  // and fire its reminders without holding any user settings of its own.
+  const settings = getEffectiveSettings();
   return {
     title: task.title,
     description: task.description || null,
@@ -51,6 +55,9 @@ function toSyncPayload(task: LocalTask): SyncTaskPayload {
     reminder_time_local: task.reminder_time_local,
     reminder_interval_hours: task.reminder_interval_hours,
     recurrence_rule: task.recurrence_rule,
+    reminder_timezone: settings.timezone,
+    reminder_language: settings.language,
+    snooze_minutes: settings.default_snooze_minutes,
     updated_at: task.updated_at,
     deleted_at: task.deleted_at,
   };

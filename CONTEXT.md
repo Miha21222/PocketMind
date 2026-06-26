@@ -21,10 +21,8 @@ Do not reintroduce the old backend-owned task CRUD flow or Vercel/serverless dep
 
 - `frontend/`: React + TypeScript + Vite Telegram Mini App.
 - `backend/`: FastAPI API, SQLAlchemy models, Alembic migrations, aiogram bot, APScheduler worker.
-- `infra/nginx/`: nginx configs for local/prod reverse proxy.
-- `docs/archive/`: old plans and deployment notes kept for reference only.
 - `.github/workflows/github-pages.yml`: GitHub Pages deployment workflow for the frontend.
-- `Dockerfile`, `docker-compose.yml`, `docker-compose.local.yml`: backend/bot/scheduler/proxy deployment support.
+- `Dockerfile`, `docker-compose.yml`: single-container backend (API + bot + scheduler) plus a `cloudflared` tunnel — the VPS deployment shape.
 - `README.md`: concise user-facing run/deploy instructions.
 
 ## Active Architecture
@@ -56,7 +54,8 @@ Important frontend files:
 
 - `frontend/src/api/client.ts`: API base URL and bearer-token request wrapper.
 - `frontend/src/api/auth.ts`: Telegram auth API call.
-- `frontend/src/api/settings.ts`: user settings API calls.
+- `frontend/src/features/settings/localSettings.ts`: client-owned settings store (localStorage); also the source of the per-task reminder snapshot.
+- `frontend/src/contexts/AppSettingsContext.tsx`: settings provider; reads/writes localStorage only, never the backend.
 - `frontend/src/api/sync.ts`: sync API calls.
 - `frontend/src/api/tasks.ts`: compatibility facade used by pages; it now delegates to local storage, not backend CRUD.
 - `frontend/src/features/tasks/localTaskRepository.ts`: localStorage repository plus push/bootstrap sync behavior.
@@ -77,13 +76,27 @@ Frontend auth flow:
 4. It calls `POST /api/v1/auth/telegram`.
 5. It stores the returned JWT in memory through `setAuthToken`.
 
+Local preview bypass: when `VITE_LOCAL_PREVIEW=true` (set only by `frontend/.env.preview`,
+loaded via `npm run dev:local` / `scripts/preview-frontend.ps1`), `useTelegramAuth`
+short-circuits to an authenticated stub user with no backend call, so the app runs fully
+on `localStorage` for UI work. The production GitHub Pages build (mode `production`) never
+sets the flag, so this branch is dead in prod.
+
 Frontend task flow:
 
 1. User creates/edits/deletes a task locally.
 2. Full task state is written to `localStorage`.
-3. Reminder-relevant fields are pushed to backend sync endpoints.
+3. Reminder-relevant fields are pushed to backend sync endpoints, each stamped with a
+   snapshot of the user's reminder-shaping settings (timezone, language, snooze).
 4. If backend is unavailable, local editing still works.
 5. On app start, frontend bootstraps from backend and merges remote bot/scheduler changes into local state.
+
+Settings are client-owned: they live only in `localStorage` (`pocketmind.settings.v1`)
+and never sync. There is no settings API. Changing a setting is a pure local write (no
+awaited request, no failure path), and the app re-syncs tasks so the new snapshot
+propagates to already-stored tasks. The three reminder-shaping values the backend needs
+(timezone, language, snooze) ride along with each task; all other settings are pure
+client-side form/UX preferences.
 
 Task ids are strings on the frontend. `LocalTask.id` is the stable `client_task_id` used for cross-surface sync and Mini App task URLs.
 
@@ -102,27 +115,24 @@ Backend stack:
 Active public API routers are mounted under `/api/v1`:
 
 - `POST /api/v1/auth/telegram`
-- `GET /api/v1/settings/me`
-- `PATCH /api/v1/settings/me`
 - `GET /api/v1/sync/bootstrap`
 - `GET /api/v1/sync/changes?since=...`
 - `PUT /api/v1/sync/tasks/{client_task_id}`
 - `DELETE /api/v1/sync/tasks/{client_task_id}`
 - `POST /api/v1/sync/batch`
 
-The backend root no longer serves the frontend. `/health` is the health endpoint. Old `/api/v1/tasks` and old internal cron/webhook surfaces are not part of the active architecture.
+The backend root no longer serves the frontend. `/health` is the health endpoint. Old `/api/v1/tasks`, the old `/api/v1/settings/me` surface, and old internal cron/webhook surfaces are not part of the active architecture. The backend stores no user settings — each task carries its own snapshot.
 
 Important backend files:
 
 - `backend/app/main.py`: FastAPI app, CORS, router mounting, local metadata bootstrap.
 - `backend/app/api/v1/__init__.py`: active API router registration.
 - `backend/app/api/v1/auth.py`: Telegram initData validation and JWT issuing.
-- `backend/app/api/v1/settings.py`: persisted per-user app/bot defaults.
 - `backend/app/api/v1/sync.py`: sync endpoints.
 - `backend/app/schemas/sync.py`: sync request/response contracts.
 - `backend/app/services/task_sync_service.py`: sync payload application, UTC normalization, sync record serialization.
-- `backend/app/models/task.py`: task model, including `client_task_id` and `deleted_at`.
-- `backend/app/models/user.py`: Telegram user and settings fields.
+- `backend/app/models/task.py`: task model, including `client_task_id`, `deleted_at`, and the per-task settings snapshot (`reminder_timezone`, `reminder_language`, `snooze_minutes`).
+- `backend/app/models/user.py`: Telegram identity only (no settings columns).
 - `backend/app/services/task_service.py`: due-task selection for scheduler.
 - `backend/app/services/reminder_runner.py`: one scheduler cycle.
 - `backend/app/services/reminder_service.py`: reminder message creation/sending.
@@ -155,6 +165,12 @@ Frontend local task fields include UI/full-task data:
 - `deleted_at`
 
 Backend synced task data is stored in the existing `tasks` table, but only the reminder-relevant subset should be treated as backend-owned. `client_task_id` is unique per user and is the bridge between local tasks and backend rows.
+
+Each sync payload also carries a snapshot of the user's reminder-shaping settings —
+`reminder_timezone`, `reminder_language`, `snooze_minutes` — captured on the client at
+sync time and stored on the task row. The backend computes and fires reminders purely
+from the task (including its snapshot); it holds no per-user settings. `normalize_timezone`
+falls back to `DEFAULT_TIMEZONE` so reminder math always has a valid zone.
 
 Merge rule:
 
@@ -202,6 +218,11 @@ Environment variables are documented in `.env.example`:
 
 Config is loaded by `backend/app/core/config.py` from either root `.env` or `backend/.env`.
 
+These are runtime/infra config only. User-facing app settings (app language, timezone,
+reminder defaults, snooze) are **not** here and **not** on the backend — they live in the
+client's `localStorage` and ride along with each task as a snapshot. `DEFAULT_TIMEZONE` is
+only the backend's fallback when a task arrives without a timezone snapshot.
+
 Production expectations:
 
 - `MINI_APP_URL` should be the GitHub Pages URL.
@@ -225,10 +246,14 @@ If the GitHub repository name changes, update `VITE_BASE_PATH` in the workflow. 
 
 Backend deployment:
 
-- `docker-compose.yml` runs `backend`, `bot`, `scheduler`, and `proxy`.
-- All Python service containers use the same image and SQLite volume.
-- nginx production config lives in `infra/nginx/default.conf`.
-- Local compose uses `docker-compose.local.yml` and `infra/nginx/local.conf`.
+- `docker-compose.yml` is the only compose file. It runs one `backend` container
+  (API + bot + scheduler supervised together, migrations applied on start) plus a
+  `cloudflared` connector.
+- Public ingress is a Cloudflare Tunnel: TLS terminates at Cloudflare's edge and the
+  tunnel's public hostname (`api.<your-domain>`) points at `http://backend:8000`. No
+  host ports are exposed; there is no nginx/reverse-proxy layer anymore.
+- `TUNNEL_TOKEN` (the Zero Trust connector token) is required for the tunnel.
+- SQLite persists in the `pocketmind_data` volume; override `DATABASE_URL` for Postgres.
 
 ## Local Development Commands
 

@@ -1,95 +1,118 @@
-import { useState } from "react";
-import { ListFilter, ListTodo } from "lucide-react";
+import { ListFilter, ListTodo, RotateCcw } from "lucide-react";
 import { LoadingState } from "../components/LoadingState";
 import { TaskCard } from "../components/TaskCard";
 import { useAppSettings } from "../contexts/AppSettingsContext";
-import { TaskType } from "../types/task";
-import { applyTaskFilters, TaskView } from "../features/tasks/selectors";
+import { applyTaskFilters } from "../features/tasks/selectors";
 import { useTasksAllQuery } from "../features/tasks/cache";
-
-const views = ["active", "overdue", "completed", "cancelled"] as const;
-const typeFilters = ["all", "quick", "deadline", "no_deadline", "recurring", "waiting"] as const;
+import {
+  DEFAULT_TASK_LIST_TYPE,
+  DEFAULT_TASK_LIST_VIEW,
+  TASK_LIST_TYPES,
+  TASK_LIST_TYPE_STORAGE_KEY,
+  TASK_LIST_VIEWS,
+  TASK_LIST_VIEW_STORAGE_KEY,
+} from "../features/tasks/viewPreferences";
+import { usePersistentEnumState } from "../hooks/usePersistentEnumState";
+import { hapticSelection } from "../utils/haptics";
 
 export function TaskListPage() {
-  const { t } = useAppSettings();
-  const [view, setView] = useState<(typeof views)[number]>("active");
-  const [taskType, setTaskType] = useState<(typeof typeFilters)[number]>("all");
+  const { settings, t } = useAppSettings();
+  const { value: view, setValue: setView, reset: resetView, isDefault: isDefaultView } = usePersistentEnumState(
+    TASK_LIST_VIEW_STORAGE_KEY,
+    DEFAULT_TASK_LIST_VIEW,
+    TASK_LIST_VIEWS,
+  );
+  const { value: taskType, setValue: setTaskType, reset: resetTaskType, isDefault: isDefaultTaskType } = usePersistentEnumState(
+    TASK_LIST_TYPE_STORAGE_KEY,
+    DEFAULT_TASK_LIST_TYPE,
+    TASK_LIST_TYPES,
+  );
   const tasksAllQuery = useTasksAllQuery();
-  const filteredTasks = applyTaskFilters(tasksAllQuery.data ?? [], view as TaskView, taskType as TaskType | "all");
+  const filteredTasks = applyTaskFilters(tasksAllQuery.data ?? [], view, taskType, new Date(), settings.timezone);
 
-  const statusLabel = (item: (typeof views)[number]) =>
-    item === "active"
-      ? t("active")
-      : item === "overdue"
-        ? t("overdue")
-        : item === "completed"
-          ? t("completed")
-          : t("cancelled");
-  const typeLabel = (item: (typeof typeFilters)[number]) =>
-    item === "all"
-      ? t("allTypes")
-      : item === "quick"
-        ? t("quick")
-        : item === "deadline"
-          ? t("deadline")
-          : item === "no_deadline"
-            ? t("noDeadline")
-            : item === "recurring"
-              ? t("recurring")
-              : t("waiting");
+  const statusLabels = {
+    active: t("active"),
+    overdue: t("overdue"),
+    completed: t("completed"),
+    cancelled: t("cancelled"),
+  } as const;
+  const typeLabels = {
+    all: t("allTypes"),
+    quick: t("quick"),
+    deadline: t("deadline"),
+    no_deadline: t("noDeadline"),
+    recurring: t("recurring"),
+    waiting: t("waiting"),
+  } as const;
+  const isDefaultFilters = isDefaultView && isDefaultTaskType;
 
   return (
     <section className="grid-section">
-      <div className="filter-group-card">
-        <div className="section-card-header">
-          <span className="section-card-icon" aria-hidden="true">
-            <ListFilter size={18} />
-          </span>
-          <h2>{t("filterTasks")}</h2>
+      <section className="task-results-card">
+        <div className="filter-card-topline">
+          <div className="section-card-header">
+            <span className="section-card-icon" aria-hidden="true">
+              <ListTodo size={18} />
+            </span>
+            <h2>{t("taskList")}</h2>
+          </div>
+          {!isDefaultFilters && (
+            <button
+              type="button"
+              className="filter-reset-btn"
+              onClick={() => {
+                hapticSelection();
+                resetView();
+                resetTaskType();
+              }}
+            >
+              <RotateCcw size={15} aria-hidden="true" />
+              <span>{t("clear")}</span>
+            </button>
+          )}
         </div>
         <div className="section-card-divider" />
-        <div className="filter-controls">
-          <div className="filter-subgroup">
-            <label className="filter-subgroup-title" htmlFor="filter-status">{t("status")}</label>
+        <div className="compact-select-toolbar tasks">
+          <label className="compact-select-group" htmlFor="filter-status">
+            <span className="filter-subgroup-title">{t("status")}</span>
             <select
               id="filter-status"
-              className="filter-select"
+              className="filter-select compact"
+              aria-label={t("status")}
               value={view}
-              onChange={(event) => setView(event.target.value as (typeof views)[number])}
+              onChange={(event) => {
+                hapticSelection();
+                setView(event.target.value as (typeof TASK_LIST_VIEWS)[number]);
+              }}
             >
-              {views.map((item) => (
+              {TASK_LIST_VIEWS.map((item) => (
                 <option key={item} value={item}>
-                  {statusLabel(item)}
+                  {statusLabels[item]}
                 </option>
               ))}
             </select>
-          </div>
-          <div className="filter-subgroup">
-            <label className="filter-subgroup-title" htmlFor="filter-type">{t("type")}</label>
+          </label>
+          <label className="compact-select-group" htmlFor="filter-type">
+            <span className="filter-subgroup-title">{t("type")}</span>
             <select
               id="filter-type"
-              className="filter-select"
+              className="filter-select compact"
+              aria-label={t("type")}
               value={taskType}
-              onChange={(event) => setTaskType(event.target.value as (typeof typeFilters)[number])}
+              onChange={(event) => {
+                hapticSelection();
+                setTaskType(event.target.value as (typeof TASK_LIST_TYPES)[number]);
+              }}
             >
-              {typeFilters.map((item) => (
+              {TASK_LIST_TYPES.map((item) => (
                 <option key={item} value={item}>
-                  {typeLabel(item)}
+                  {typeLabels[item]}
                 </option>
               ))}
             </select>
-          </div>
+          </label>
         </div>
-      </div>
-
-      <section className="task-results-card">
-        <div className="section-card-header">
-          <span className="section-card-icon" aria-hidden="true">
-            <ListTodo size={18} />
-          </span>
-          <h2>{t("taskList")}</h2>
-        </div>
-        <div className="section-card-divider" />
+        <div className="mild-section-separator" />
 
         {tasksAllQuery.isPending && <LoadingState label={t("loadingTasks")} />}
         {tasksAllQuery.error && <p className="error">{t("failedToLoadTasks")}</p>}

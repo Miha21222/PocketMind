@@ -53,6 +53,12 @@ class Task(Base):
     reminder_interval_hours: Mapped[int | None] = mapped_column(nullable=True)
     snoozed_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     recurrence_rule: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Per-task snapshot of the user's reminder-shaping settings, taken on the
+    # client at sync time. The backend owns no user settings; everything it needs
+    # to compute and fire this task's reminders travels with the task itself.
+    reminder_timezone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    reminder_language: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    snooze_minutes: Mapped[int | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

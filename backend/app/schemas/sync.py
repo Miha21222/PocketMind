@@ -16,6 +16,11 @@ class SyncTaskBase(BaseModel):
     reminder_time_local: str | None = Field(default=None, pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$")
     reminder_interval_hours: int | None = Field(default=None, ge=1, le=24)
     recurrence_rule: str | None = Field(default=None, max_length=255)
+    # Client-captured snapshot of the user's reminder-shaping settings. The backend
+    # uses these to compute/fire this task's reminders; it keeps no user settings.
+    reminder_timezone: str | None = Field(default=None, max_length=64)
+    reminder_language: str | None = Field(default=None, max_length=8)
+    snooze_minutes: int | None = Field(default=None, ge=5, le=240)
     updated_at: datetime
     deleted_at: datetime | None = None
 

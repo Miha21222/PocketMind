@@ -1,17 +1,20 @@
 import { Pencil } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Task } from "../types/task";
 import { useAppSettings } from "../contexts/AppSettingsContext";
 import { isTaskOverdue } from "../features/tasks/selectors";
+import { TaskEditNavigationState } from "../utils/taskNavigation";
 import { formatInTimezone } from "../utils/dateTime";
 import { taskStatusLabel, taskTypeLabel } from "../utils/taskLabels";
 
 type TaskCardProps = {
   task: Task;
+  displayReminderAt?: string | null;
 };
 
-export function TaskCard({ task }: TaskCardProps) {
+export function TaskCard({ task, displayReminderAt }: TaskCardProps) {
   const { settings, t } = useAppSettings();
+  const location = useLocation();
   const navigate = useNavigate();
   const overdue = isTaskOverdue(task);
   const isFinal = task.status === "done" || task.status === "cancelled";
@@ -40,9 +43,9 @@ export function TaskCard({ task }: TaskCardProps) {
         )}
       </div>
       {task.description ? <p className="task-card-desc">{task.description}</p> : null}
-      {!isFinal && task.remind_at ? (
+      {!isFinal && (displayReminderAt ?? task.remind_at) ? (
         <p className="task-date">
-          {t("reminderTime")}: {formatInTimezone(task.remind_at, settings.timezone, settings.language)}
+          {t("reminderTime")}: {formatInTimezone(displayReminderAt ?? task.remind_at, settings.timezone, settings.language)}
         </p>
       ) : null}
       {task.deadline_at ? (
@@ -61,7 +64,8 @@ export function TaskCard({ task }: TaskCardProps) {
               title={t("edit")}
               onClick={(event) => {
                 event.stopPropagation();
-                navigate(`/tasks/${task.id}/edit`);
+                const state: TaskEditNavigationState = { returnTo: location.pathname };
+                navigate(`/tasks/${task.id}/edit`, { state });
               }}
             >
               <Pencil size={20} aria-hidden="true" />

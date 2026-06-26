@@ -33,7 +33,7 @@ export function TaskCreatePage() {
       title: values.title,
       description: values.description || undefined,
       type: values.type,
-      deadline_at: values.type === "deadline" ? fromLocalDateInput(values.deadline_at) : null,
+      deadline_at: values.type === "deadline" ? fromLocalDateInput(values.deadline_at, settings.timezone) : null,
       reminder_mode: values.type === "deadline" || values.type === "waiting" ? values.reminder_mode : null,
       reminder_time_local: usesReminderTime(values) ? values.reminder_time_local || null : null,
       reminder_interval_hours:
@@ -45,7 +45,9 @@ export function TaskCreatePage() {
       clearTaskCreateDraft();
       hapticNotification("success");
       showToast({ tone: "success", message: t("taskCreated") });
-      navigate("/tasks");
+      // Replace so the submitted create form is not left in history; back from the
+      // task list should return to wherever the user was, not the create screen.
+      navigate("/tasks", { replace: true });
     } catch {
       hapticNotification("error");
       showToast({ tone: "error", message: t("failedCreateTask") });

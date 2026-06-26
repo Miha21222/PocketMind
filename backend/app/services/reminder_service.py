@@ -9,7 +9,7 @@ from app.models.reminder_log import ReminderLog, ReminderStatus
 from app.models.task import Task, TaskStatus, TaskType
 from app.models.user import User
 from app.services.reminder_planning_service import assign_next_reminder_after_send
-from app.services.user_settings_service import normalize_timezone
+from app.services.user_settings_service import normalize_language, normalize_timezone
 
 
 def _format_dt(value: datetime | None) -> str:
@@ -47,8 +47,10 @@ def build_reminder_text(task: Task, lang: str) -> str:
 
 
 async def send_task_reminder(db: AsyncSession, bot: Bot, task: Task, user: User) -> None:
-    lang = resolve_user_language(user)
-    snooze_minutes = user.default_snooze_minutes if user.default_snooze_minutes else 15
+    # The task's own snapshot drives language/snooze/timezone; fall back to the
+    # Telegram-derived language only if the task carries none.
+    lang = normalize_language(task.reminder_language) if task.reminder_language else resolve_user_language(user)
+    snooze_minutes = task.snooze_minutes if task.snooze_minutes else 15
     log_entry = ReminderLog(
         task_id=task.id,
         user_id=user.id,
@@ -78,7 +80,7 @@ async def send_task_reminder(db: AsyncSession, bot: Bot, task: Task, user: User)
         task.last_reminded_at = datetime.now(UTC)
         task.status = TaskStatus.reminded
 
-        timezone = normalize_timezone(user.preferred_timezone)
+        timezone = normalize_timezone(task.reminder_timezone)
         assign_next_reminder_after_send(task, timezone)
         if task.remind_at is not None:
             task.status = TaskStatus.planned

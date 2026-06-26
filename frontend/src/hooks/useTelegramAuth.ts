@@ -10,6 +10,21 @@ interface AuthState {
   user: AuthUser | null;
 }
 
+// Dev-only local preview: when VITE_LOCAL_PREVIEW=true the app skips Telegram
+// auth and the backend entirely and runs fully on localStorage. The flag lives
+// only in frontend/.env.preview (loaded by `npm run dev:local`); the GitHub
+// Pages production build uses mode "production" and never sets it, so this
+// branch is unreachable in production.
+const LOCAL_PREVIEW = import.meta.env.VITE_LOCAL_PREVIEW === "true";
+
+const PREVIEW_USER: AuthUser = {
+  id: 0,
+  telegram_id: 0,
+  username: "local-preview",
+  first_name: "Local",
+  last_name: "Preview",
+};
+
 function getInitDataFromUrl(): string | null {
   const searchParams = new URLSearchParams(window.location.search);
   const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
@@ -28,6 +43,10 @@ export function useTelegramAuth(): AuthState {
 
   useEffect(() => {
     const init = async () => {
+      if (LOCAL_PREVIEW) {
+        setState({ loading: false, error: null, authenticated: true, user: PREVIEW_USER });
+        return;
+      }
       try {
         const webApp = getTelegramWebApp();
         const initData =

@@ -21,8 +21,7 @@ The current default architecture is:
 
 - `backend/` API, DB models, bot handlers, scheduler worker
 - `frontend/` Telegram Mini App UI
-- `infra/nginx/` reverse-proxy config
-- `docs/archive/` archived plans and old implementation notes
+- `Dockerfile` + `docker-compose.yml` single-container backend + Cloudflare Tunnel
 
 ## Production architecture (GitHub Pages + Python host)
 
@@ -107,51 +106,63 @@ npm.cmd install --cache .npm-cache
 npm.cmd run dev
 ```
 
-## Docker Compose (single VPS)
+## Frontend-only local preview (no backend, no Telegram)
 
-1. Copy env:
+For finetuning the UI, run the Mini App entirely on browser `localStorage` — no
+backend, no bot, no Telegram auth. Task create/edit/done all work; only reminder
+delivery (which needs the backend bot/scheduler) is out of scope.
+
+From the repo root:
+```powershell
+./scripts/preview-frontend.ps1
+```
+Or directly:
+```powershell
+cd frontend
+npm.cmd run dev:local
+```
+
+Then open `http://localhost:5173`. This uses Vite `--mode preview`, which loads
+`frontend/.env.preview` (`VITE_LOCAL_PREVIEW=true`); `useTelegramAuth` short-circuits
+on that flag with a local stub user. The GitHub Pages production build (mode
+`production`) never sets the flag, so the bypass cannot reach prod.
+
+## Deploy backend (Docker + Cloudflare Tunnel on a VPS)
+
+`docker-compose.yml` runs the whole backend — API, Telegram bot poller, and reminder
+scheduler — in one self-contained image (migrations applied on start, the three
+processes supervised together, logs streamed to `docker logs`). A `cloudflared`
+service publishes it at your stable `https://api.<your-domain>` with TLS terminated
+at Cloudflare's edge, so no host ports are exposed. This is the shape to deploy on a
+VPS such as Hostinger.
+
+1. In the Cloudflare Zero Trust dashboard, create a Tunnel with a public hostname
+   (`api.<your-domain>`) whose Service points at `http://backend:8000`, and copy the
+   connector token.
+2. Copy env and fill values (`BOT_TOKEN`, `JWT_SECRET`, `MINI_APP_URL`, and
+   `TUNNEL_TOKEN` = the connector token):
 ```powershell
 Copy-Item .env.example .env
 ```
-2. Put TLS certificates in:
-- `infra/nginx/certs/fullchain.pem`
-- `infra/nginx/certs/privkey.pem`
-3. Start backend + bot + scheduler:
+3. Build and run:
 ```powershell
-docker compose up -d --build
+docker compose up -d --build   # build + start
+docker compose logs -f         # watch API + bot + scheduler + tunnel
+docker compose down            # stop (data persists)
 ```
 
-The SQLite file is persisted via `pocketmind_data` volume.
+SQLite persists in the `pocketmind_data` volume. For hosted use you can override
+`DATABASE_URL` to point at managed Postgres — migrations run against it the same way.
+The bot and scheduler require a valid `BOT_TOKEN`; without one they stop after a few
+retries while the API keeps running.
 
-## Self-contained single container (all-in-one backend)
-
-The whole backend — API, Telegram bot poller, and reminder scheduler — can run in
-one self-contained image. Migrations are applied on start and the three processes
-are supervised together; logs stream to `docker logs`. Use this for local testing
-and as the hosting shape for the entire backend.
-
-1. Copy env and fill values (`BOT_TOKEN`, `JWT_SECRET`, URLs):
-```powershell
-Copy-Item .env.example .env
-```
-2. Build and run with Compose:
-```powershell
-docker compose -f docker-compose.single.yml up -d --build
-docker compose -f docker-compose.single.yml logs -f
-docker compose -f docker-compose.single.yml down
-```
-
-Or with plain Docker (no Compose):
+To run the image directly without the tunnel (e.g. a local smoke test), publish the
+port instead:
 ```powershell
 docker build -t pocketmind-backend:latest .
 docker run --rm -p 8000:8000 --env-file .env -v pocketmind_data:/app/data pocketmind-backend:latest
 ```
-
-The API is served on `http://localhost:8000` (`/health` for a readiness check).
-SQLite persists in the `pocketmind_data` volume. For hosted use, override
-`DATABASE_URL` to point at managed Postgres — migrations run against it the same way.
-The bot and scheduler require a valid `BOT_TOKEN`; without one they stop after a few
-retries while the API keeps running.
+The API then answers on `http://localhost:8000` (`/health` for a readiness check).
 
 ## Current MVP slice
 

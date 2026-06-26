@@ -643,6 +643,14 @@ button.ghost,
   gap: 8px;
 }
 
+.filter-card-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .filter-subgroup {
   display: grid;
   gap: 6px;
@@ -671,6 +679,62 @@ button.ghost,
 .filter-select:focus-visible {
   outline: 2px solid var(--pm-blue-500);
   outline-offset: 1px;
+}
+
+.filter-reset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid #c9deef;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #496985;
+  font-size: 0.88rem;
+  font-weight: 700;
+  transition: transform 0.08s ease, filter 0.12s ease;
+}
+
+.filter-reset-btn:active {
+  transform: translateY(1px) scale(0.98);
+  filter: brightness(0.97);
+}
+
+.filter-reset-btn:focus-visible {
+  outline: 2px solid var(--pm-blue-500);
+  outline-offset: 2px;
+}
+
+.compact-select-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+}
+
+.compact-select-toolbar.tasks {
+  gap: 10px 12px;
+}
+
+.compact-select-group {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 220px;
+}
+
+.filter-select.compact {
+  min-height: 40px;
+  padding: 8px 34px 8px 12px;
+  font-size: 0.92rem;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.mild-section-separator {
+  height: 1px;
+  background: linear-gradient(90deg, rgba(212, 227, 241, 0.2), rgba(212, 227, 241, 0.95), rgba(212, 227, 241, 0.2));
 }
 
 .chip {
@@ -1020,11 +1084,17 @@ button.ghost,
   font-weight: 700;
 }
 
-.timeline {
+.schedule-list {
   display: grid;
+  gap: 14px;
 }
 
-.timeline-day-label {
+.schedule-group {
+  display: grid;
+  gap: 10px;
+}
+
+.schedule-day-label {
   margin: 14px 0 8px;
   padding-left: 4px;
   font-size: 1.05rem;
@@ -1033,54 +1103,28 @@ button.ghost,
   text-transform: capitalize;
 }
 
-.timeline-row {
+.schedule-item {
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr);
-  gap: 10px;
-  padding-bottom: 14px;
-  align-items: stretch;
+  gap: 6px;
 }
 
-.timeline-rail {
-  position: relative;
+.schedule-item-meta {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding-top: 6px;
+  padding-left: 4px;
 }
 
-/* Continuous scale line; bottom bridges the row gap so it never breaks. */
-.timeline-rail::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: -14px;
-  width: 2px;
-  background: #cfe0ef;
-}
-
-.timeline-time {
-  position: relative;
-  z-index: 1;
-  margin-bottom: 6px;
-  padding: 2px 6px;
+.schedule-time-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 2px 8px;
   border-radius: 8px;
   background: #eef5fb;
   font-size: 0.82rem;
   font-weight: 800;
   color: #2566ae;
   white-space: nowrap;
-}
-
-.timeline-dot {
-  position: relative;
-  z-index: 1;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--pm-blue-500);
-  border: 2px solid #fff;
-  box-shadow: 0 0 0 2px #cfe0ef;
 }
 
 /* Floating universal back button (mirror of the create button, bottom-left) */

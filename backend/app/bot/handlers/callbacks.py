@@ -10,7 +10,7 @@ from app.models.task import Task, TaskStatus
 from app.models.user import User
 from app.services.reminder_cleanup_service import cleanup_task_reminder_messages
 from app.services.task_actions import complete_task, snooze_task
-from app.services.user_settings_service import normalize_timezone
+from app.services.user_settings_service import normalize_language, normalize_timezone
 
 router = Router()
 
@@ -63,6 +63,10 @@ async def on_task_action(callback: CallbackQuery) -> None:
             await callback.answer(t(lang, "cb_task_not_found"), show_alert=True)
             return
 
+        # The task carries its own language snapshot; prefer it for replies.
+        if task.reminder_language:
+            lang = normalize_language(task.reminder_language)
+
         if task.status in {TaskStatus.done, TaskStatus.cancelled}:
             await callback.answer(t(lang, "cb_task_closed"), show_alert=True)
             await _cleanup_reminder_message(callback)
@@ -86,7 +90,7 @@ async def on_task_action(callback: CallbackQuery) -> None:
             return
 
         if action == "done":
-            complete_task(task, timezone=normalize_timezone(actor.preferred_timezone))
+            complete_task(task, timezone=normalize_timezone(task.reminder_timezone))
             notice = t(lang, "cb_marked_done")
         elif action.startswith("snooze"):
             try:

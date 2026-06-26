@@ -39,17 +39,6 @@ async def seed_user() -> User:
             first_name="Sync",
             last_name="Tester",
             language_code="en",
-            preferred_language="en",
-            preferred_timezone="UTC",
-            default_snooze_minutes=15,
-            default_quick_delay_minutes=10,
-            default_deadline_reminder_mode="daily_at_time",
-            default_deadline_reminder_time_local="09:00",
-            default_deadline_reminder_interval_hours=4,
-            default_waiting_reminder_mode="daily_at_time",
-            default_waiting_reminder_time_local="10:00",
-            default_waiting_reminder_interval_hours=4,
-            default_recurring_reminder_time_local="09:00",
         )
         db.add(user)
         await db.commit()
@@ -139,3 +128,43 @@ class SyncApiTests(unittest.TestCase):
         change_items = changes.json()["items"]
         self.assertEqual(len(change_items), 1)
         self.assertEqual(change_items[0]["title"], "Newest title")
+
+    def test_task_timezone_snapshot_drives_reminder(self) -> None:
+        # Each task carries its own timezone snapshot; the backend computes the
+        # reminder from it with no per-user settings. 09:00 local in different
+        # zones must resolve to different UTC instants.
+        base = {
+            "title": "Timezone task",
+            "type": "deadline",
+            "status": "planned",
+            "description": None,
+            "deadline_at": "2099-01-01T00:00:00Z",
+            "remind_at": None,
+            "reminder_mode": "daily_at_time",
+            "reminder_time_local": "09:00",
+            "reminder_interval_hours": None,
+            "recurrence_rule": None,
+            "reminder_language": "ru",
+            "snooze_minutes": 30,
+            "updated_at": "2026-06-26T00:00:00Z",
+            "deleted_at": None,
+        }
+
+        tokyo = self.client.put(
+            "/api/v1/sync/tasks/tz-tokyo",
+            json={**base, "reminder_timezone": "Asia/Tokyo"},
+            headers=self.headers,
+        )
+        new_york = self.client.put(
+            "/api/v1/sync/tasks/tz-ny",
+            json={**base, "reminder_timezone": "America/New_York"},
+            headers=self.headers,
+        )
+
+        self.assertEqual(tokyo.status_code, 200)
+        self.assertEqual(new_york.status_code, 200)
+        tokyo_remind = tokyo.json()["task"]["remind_at"]
+        new_york_remind = new_york.json()["task"]["remind_at"]
+        self.assertIsNotNone(tokyo_remind)
+        self.assertIsNotNone(new_york_remind)
+        self.assertNotEqual(tokyo_remind, new_york_remind)

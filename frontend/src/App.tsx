@@ -14,11 +14,12 @@ import { TaskEditPage } from "./pages/TaskEditPage";
 import { TaskListPage } from "./pages/TaskListPage";
 import { useTasksAllQuery } from "./features/tasks/cache";
 import { useTelegramAuth } from "./hooks/useTelegramAuth";
+import { getEffectiveSettings } from "./features/settings/localSettings";
 
 export default function App() {
   const auth = useTelegramAuth();
   const tasksAllQuery = useTasksAllQuery(auth.authenticated);
-  const initialLanguage = auth.user?.settings?.language ?? "en";
+  const initialLanguage = getEffectiveSettings().language;
   const text = translations[initialLanguage] ?? translations.en;
 
   if (auth.loading) return <LoadingState label={text.authorizing} />;
@@ -54,7 +55,7 @@ export default function App() {
   }
 
   return (
-    <AppSettingsProvider initialSettings={auth.user?.settings}>
+    <AppSettingsProvider>
       <ToastProvider>
         <Layout>
           <Routes>

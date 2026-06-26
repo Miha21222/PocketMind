@@ -188,6 +188,7 @@ export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFo
   } = descriptionField;
   const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
+  const pendingNotifyFrameRef = useRef<number | null>(null);
   const [descriptionRows, setDescriptionRows] = useState(4);
   const descriptionValue = watch("description");
 
@@ -230,8 +231,22 @@ export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFo
   };
   const notifyValuesChange = () => {
     if (!onValuesChange) return;
-    window.requestAnimationFrame(() => onValuesChange(readCurrentFormValues()));
+    // Coalesce rapid input/change events into the next frame, and keep the frame
+    // id so it can be cancelled on unmount. Without the cancel, a frame scheduled
+    // by the blur that submit triggers can fire *after* the page has navigated
+    // away and re-write a draft the submit handler already cleared.
+    if (pendingNotifyFrameRef.current !== null) cancelAnimationFrame(pendingNotifyFrameRef.current);
+    pendingNotifyFrameRef.current = window.requestAnimationFrame(() => {
+      pendingNotifyFrameRef.current = null;
+      onValuesChange(readCurrentFormValues());
+    });
   };
+  useEffect(
+    () => () => {
+      if (pendingNotifyFrameRef.current !== null) cancelAnimationFrame(pendingNotifyFrameRef.current);
+    },
+    [],
+  );
   const handleDelete = () => {
     hapticNotification("warning");
     onDelete?.();
@@ -303,7 +318,7 @@ export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFo
       onInputCapture={notifyValuesChange}
       onChangeCapture={notifyValuesChange}
       onSubmit={handleSubmit(async (values) => {
-        await onSubmit(values);
+        await onSubmit({ ...values, ...readCurrentFormValues() });
       })}
     >
       <label>

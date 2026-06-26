@@ -1,84 +1,25 @@
-﻿# General Working Postulates
+# Repository Guidelines
 
-Cross-project working principles that should stay valid beyond any single repository, framework, or integration. Prefer concise, correct execution over verbose process narration.
+## Project Structure & Module Organization
+`frontend/` contains the Telegram Mini App built with React, TypeScript, and Vite. Main UI code lives in `src/`, with shared components in `src/components/`, route pages in `src/pages/`, API helpers in `src/api/`, and local-first task logic in `src/features/tasks/`. `backend/` contains the FastAPI API, aiogram bot, scheduler worker, SQLAlchemy models, and Alembic migrations. Tests live in `frontend/tests/` and `backend/tests/`. Repo-level scripts for local preview live in `scripts/`.
 
-## 1. Think First, Act After
+## Build, Test, and Development Commands
+- `Copy-Item .env.example .env`: create local environment config.
+- `cd frontend; npm.cmd install --cache .npm-cache`: install frontend deps.
+- `cd frontend; npm.cmd run dev`: run the Mini App locally.
+- `cd frontend; npm.cmd run dev:local`: run frontend-only preview with local storage and stub auth.
+- `cd frontend; npm.cmd run build`: type-check and build the production frontend bundle.
+- `cd frontend; npm.cmd run test:local`: run the TypeScript-based frontend regression tests.
+- `cd backend; pip install -r requirements.txt`: install backend deps.
+- `cd backend; alembic upgrade head`: apply database migrations.
+- `cd backend; uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`: start the API.
+- `cd backend; python -m app.bot.main` and `python -m app.scheduler.worker`: run the bot and reminder worker.
 
-For errors, bug reports, regressions, tracebacks, or non-trivial requested changes:
+## Coding Style & Naming Conventions
+Use 4 spaces in Python and 2 spaces in TypeScript/TSX, matching the existing files. Prefer explicit, descriptive names such as `task_sync_service.py`, `TaskListPage.tsx`, and `useTelegramAuth.ts`. Keep React components in PascalCase, hooks in `useX` form, and backend modules snake_case. Follow the existing local-first and sync-oriented structure instead of adding parallel abstractions.
 
-1. Analyze the request and current evidence first.
-2. State your understanding of the problem or task.
-3. Explain the likely cause, core risk, or intended change.
-4. Propose the solution or implementation approach.
-5. Wait for user alignment before editing, unless the user has already given a clear execution directive.
+## Testing Guidelines
+Backend tests use `unittest` with `fastapi.testclient`; add new files under `backend/tests/` as `test_*.py`. Frontend tests are small TypeScript entrypoints under `frontend/tests/` and are executed by `npm.cmd run test:local`. Add focused regression coverage for task timing, sync behavior, auth guards, and reminder-related flows when changing those areas.
 
-Do not treat a pasted error as automatic permission to patch files. If the request is ambiguous, ask or inspect before changing code.
-
-## 2. Project Foundation First
-
-Before implementing in a new project, establish the foundation:
-
-- project boundaries, goals, and expected outcomes;
-- base architecture, key modules, integration points, data flows, and responsibility boundaries;
-- core business logic, user flows, and supported processes;
-- technology stack by layer and the source of truth for each layer;
-- official documentation and project-specific materials relevant to that stack.
-
-Align the foundation with the user before major implementation. Once confirmed, capture stable architecture, stack rules, business logic, and source priorities in `AGENTS.md` or an equivalent project directive file so future work does not depend on repeated rediscovery.
-
-## 3. Use Existing Structure And Native Stack First
-
-Decision order for every implementation task:
-
-1. Reuse existing project modules, services, helpers, models, routers, config, logging, and utilities.
-2. Extend behavior through native mechanisms of the current stack where they fit.
-3. Add custom helpers, wrappers, services, or abstractions only when existing project structure and official stack capabilities are clearly insufficient.
-
-Do not duplicate business logic, bypass configuration flow, hardcode environment-specific values, invent payload shapes already defined by a contract, or replace native async/stack patterns with weaker alternatives. Keep new methods small, single-purpose, and easy to extend.
-
-## 4. Custom Change Self-Check
-
-Before adding custom structure, answer briefly:
-
-- Which existing module, helper, service, model, utility, or stack-native mechanism did I check first?
-- Can the change fit the current project structure instead of adding a new layer?
-- Is this abstraction truly required, or am I recreating something already provided by the project, stack, or integration contract?
-- Is the project foundation clear enough to implement safely?
-
-If the answer is unclear, inspect or align before editing.
-
-## 5. Token-Efficient Execution And Reporting
-
-For every task, choose the shortest workflow that still preserves correctness, safety, maintainability, and verification.
-
-Before acting, estimate:
-
-- scope and risk;
-- expected output;
-- necessary explanation depth;
-- necessary tool use and verification;
-- whether a concise answer is enough or implementation detail is required.
-
-Avoid repetitive narration, obvious background, redundant command output, and restating context already available. Do not omit important assumptions, risks, user-facing behavior changes, or test results merely to save tokens.
-
-Short rule: maximize practical task value per token without lowering engineering quality.
-
-## 6. Concise Report After Implementation
-
-After implementation, report only what is useful for the user to understand and verify the result:
-
-- what changed;
-- why it changed;
-- how it was verified;
-- any risks, assumptions, or follow-up needed.
-
-For architectural or non-native changes, also state which existing project abstractions or official stack APIs were used, and why custom code was justified. Do not produce exhaustive logs when a concise summary communicates the same value.
-
-## 7. General Engineering Guardrails
-
-- Prefer official documentation and local source-of-truth files over mismatched examples or blog posts.
-- When documentation conflicts with local conventions, preserve current project behavior unless explicitly refactoring.
-- Do not store secrets, credentials, or environment-specific runtime values in source code.
-- Preserve existing integration contracts and data shapes unless the task explicitly changes them.
-- Use project directives such as `AGENTS.md` to lock in approved architecture, stack assumptions, and durable workflow rules.
-- When a custom abstraction is necessary, keep it minimal and verify it does not duplicate existing behavior or break current contracts.
+## Commit & Pull Request Guidelines
+Recent commits use short imperative subjects like `Polish PocketMind frontend task UX`. Keep commits scoped and readable. Work on `stage`, not `main`, and verify changes with local preview before calling them ready. PRs should explain user-visible changes, list commands run, link issues when relevant, and include screenshots for frontend UI changes.
