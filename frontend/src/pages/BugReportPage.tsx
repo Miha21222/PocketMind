@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { Paperclip, X } from "lucide-react";
-import { submitFeedback, uploadFeedbackScreenshot } from "../api/feedback";
+import { submitFeedback } from "../api/feedback";
 import { useAppSettings } from "../contexts/AppSettingsContext";
 import { useToast } from "../contexts/ToastContext";
 import { hapticNotification } from "../utils/haptics";
@@ -21,7 +21,7 @@ export function BugReportPage() {
   const [screenshotError, setScreenshotError] = useState<string | null>(null);
 
   const mutation = useMutation({
-    mutationFn: () => submitFeedback({ kind: "bug", message: description.trim() }),
+    mutationFn: () => submitFeedback({ kind: "bug", message: description.trim(), screenshot }),
   });
 
   const clearScreenshot = () => {
@@ -59,17 +59,8 @@ export function BugReportPage() {
     }
     setDescriptionError(false);
     try {
-      const { id } = await mutation.mutateAsync();
+      await mutation.mutateAsync();
       hapticNotification("success");
-      if (screenshot) {
-        try {
-          await uploadFeedbackScreenshot(id, screenshot);
-        } catch {
-          showToast({ tone: "error", message: t("feedbackScreenshotUploadFailed") });
-          navigate("/settings", { replace: true });
-          return;
-        }
-      }
       showToast({ tone: "success", message: t("feedbackSent") });
       navigate("/settings", { replace: true });
     } catch {

@@ -1,4 +1,4 @@
-import { apiRequest, apiUpload } from "./client";
+import { apiUpload } from "./client";
 
 export type FeedbackKind = "rating" | "bug";
 
@@ -6,17 +6,14 @@ export interface FeedbackPayload {
   kind: FeedbackKind;
   rating?: number | null;
   message?: string | null;
+  screenshot?: File | null;
 }
 
 export function submitFeedback(payload: FeedbackPayload): Promise<{ id: number }> {
-  return apiRequest<{ id: number }>("/feedback", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
-
-export function uploadFeedbackScreenshot(feedbackId: number, file: File): Promise<{ ok: boolean }> {
   const form = new FormData();
-  form.append("file", file, file.name);
-  return apiUpload<{ ok: boolean }>(`/feedback/${feedbackId}/screenshot`, form);
+  form.append("kind", payload.kind);
+  if (payload.rating != null) form.append("rating", String(payload.rating));
+  if (payload.message) form.append("message", payload.message);
+  if (payload.screenshot) form.append("screenshot", payload.screenshot, payload.screenshot.name);
+  return apiUpload<{ id: number }>("/feedback", form);
 }
