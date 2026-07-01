@@ -16,8 +16,8 @@ export function taskTypeLabel(type: TaskType, t: Translator): string {
 }
 
 export function taskStatusLabel(status: TaskStatus, t: Translator): string {
-  // A task stays "active" until it is snoozed, completed or cancelled. The
-  // legacy new/planned/reminded values collapse into the same active label.
+  // Deadline-bearing tasks can also enter a distinct overdue state.
+  if (status === "overdue") return t("overdue");
   if (status === "snoozed") return t("taskStatusSnoozed");
   if (status === "done") return t("taskStatusDone");
   if (status === "cancelled") return t("taskStatusCancelled");

@@ -357,6 +357,12 @@ button.ghost,
   color: #ffffff;
 }
 
+.ghost-danger {
+  background: #fbe9ea;
+  color: var(--pm-danger);
+  border: 1px solid var(--pm-danger);
+}
+
 .link-btn {
   display: inline-flex;
 }
@@ -1149,6 +1155,63 @@ button.ghost,
 .floating-back-btn:active {
   transform: translateY(1px) scale(0.97);
   filter: brightness(0.96);
+}
+
+.settings-support-links {
+  display: grid;
+  gap: 14px;
+}
+
+.feedback-rating-field {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.feedback-screenshot-field {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.feedback-screenshot-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.feedback-screenshot-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.feedback-screenshot-preview img {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid #cfe0ef;
+}
+
+.field-label {
+  font-weight: 700;
+}
+
+.settings-support-links .link-btn {
+  justify-content: flex-start;
+}
+
+.feedback-star-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
 }
 
 /* Settings toggle switch */

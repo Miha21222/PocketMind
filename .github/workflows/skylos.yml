@@ -1,0 +1,21 @@
+name: Skylos - Python SAST, Dead Code Detection & PR Gate
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/skylos.yml"
+  push:
+    branches: ["main", "stage"]
+    paths:
+      - "backend/**"
+
+jobs:
+  skylos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skylos - Python SAST, Dead Code Detection & PR Gate
+        uses: duriantaco/skylos@v4.27.0
+        with:
+          mode: scan

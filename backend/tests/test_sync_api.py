@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -22,7 +23,9 @@ from app.core.security import create_access_token
 from app.db.base import Base
 from app.db.session import SessionLocal, engine
 from app.main import app
+from app.models.task import ReminderMode, Task, TaskStatus, TaskType
 from app.models.user import User
+from app.services.task_service import get_due_tasks
 
 
 async def reset_db() -> None:
@@ -65,7 +68,7 @@ class SyncApiTests(unittest.TestCase):
         payload = {
             "title": "Plan migration",
             "type": "no_deadline",
-            "status": "new",
+            "status": "active",
             "description": None,
             "deadline_at": None,
             "remind_at": None,
@@ -92,11 +95,43 @@ class SyncApiTests(unittest.TestCase):
         self.assertEqual(bootstrap_body["items"][0]["client_task_id"], "local-1")
         self.assertIn("server_time", bootstrap_body)
 
+    def test_delete_sync_task(self) -> None:
+        payload = {
+            "title": "Plan migration",
+            "type": "no_deadline",
+            "status": "active",
+            "description": None,
+            "deadline_at": None,
+            "remind_at": None,
+            "reminder_mode": "none",
+            "reminder_time_local": None,
+            "reminder_interval_hours": None,
+            "recurrence_rule": None,
+            "updated_at": "2026-06-15T09:00:00Z",
+            "deleted_at": None,
+        }
+        put_response = self.client.put("/api/v1/sync/tasks/local-1", json=payload, headers=self.headers)
+        self.assertEqual(put_response.status_code, 200)
+
+        delete_response = self.client.delete("/api/v1/sync/tasks/local-1", headers=self.headers)
+
+        self.assertEqual(delete_response.status_code, 200)
+        body = delete_response.json()
+        self.assertTrue(body["applied"])
+        self.assertEqual(body["task"]["client_task_id"], "local-1")
+        self.assertEqual(body["task"]["status"], "cancelled")
+        self.assertIsNotNone(body["task"]["deleted_at"])
+        self.assertIsNotNone(body["task"]["cancelled_at"])
+
+    def test_delete_sync_task_missing_returns_404(self) -> None:
+        response = self.client.delete("/api/v1/sync/tasks/missing-task", headers=self.headers)
+        self.assertEqual(response.status_code, 404)
+
     def test_stale_sync_update_is_ignored(self) -> None:
         current_payload = {
             "title": "Newest title",
             "type": "quick",
-            "status": "planned",
+            "status": "active",
             "description": None,
             "deadline_at": None,
             "remind_at": None,
@@ -136,7 +171,7 @@ class SyncApiTests(unittest.TestCase):
         base = {
             "title": "Timezone task",
             "type": "deadline",
-            "status": "planned",
+            "status": "active",
             "description": None,
             "deadline_at": "2099-01-01T00:00:00Z",
             "remind_at": None,
@@ -168,3 +203,100 @@ class SyncApiTests(unittest.TestCase):
         self.assertIsNotNone(tokyo_remind)
         self.assertIsNotNone(new_york_remind)
         self.assertNotEqual(tokyo_remind, new_york_remind)
+
+    def test_deadline_task_past_deadline_persists_as_overdue(self) -> None:
+        payload = {
+            "title": "Past deadline task",
+            "type": "deadline",
+            "status": "overdue",
+            "description": None,
+            "deadline_at": "2026-06-01T09:00:00Z",
+            "remind_at": "2026-06-30T08:00:00Z",
+            "reminder_mode": "daily_at_time",
+            "reminder_time_local": "09:00",
+            "reminder_interval_hours": 4,
+            "recurrence_rule": None,
+            "updated_at": "2026-06-30T09:00:00Z",
+            "deleted_at": None,
+        }
+
+        response = self.client.put("/api/v1/sync/tasks/overdue-deadline-1", json=payload, headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        task = response.json()["task"]
+        self.assertEqual(task["status"], "overdue")
+        self.assertIsNone(task["remind_at"])
+
+        bootstrap = self.client.get("/api/v1/sync/bootstrap", headers=self.headers)
+        self.assertEqual(bootstrap.status_code, 200)
+        self.assertEqual(bootstrap.json()["items"][0]["status"], "overdue")
+
+    def test_unsupported_task_type_does_not_persist_as_overdue(self) -> None:
+        payload = {
+            "title": "Quick overdue task",
+            "type": "quick",
+            "status": "overdue",
+            "description": None,
+            "deadline_at": None,
+            "remind_at": None,
+            "reminder_mode": "none",
+            "reminder_time_local": None,
+            "reminder_interval_hours": None,
+            "recurrence_rule": None,
+            "updated_at": "2026-06-30T09:00:00Z",
+            "deleted_at": None,
+        }
+
+        response = self.client.put("/api/v1/sync/tasks/quick-overdue-1", json=payload, headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        task = response.json()["task"]
+        self.assertEqual(task["status"], "active")
+        self.assertIsNotNone(task["remind_at"])
+
+    def test_legacy_statuses_are_rejected(self) -> None:
+        payload = {
+            "title": "Legacy planned task",
+            "type": "deadline",
+            "status": "planned",
+            "description": None,
+            "deadline_at": "2026-07-01T09:00:00Z",
+            "remind_at": "2026-07-01T08:00:00Z",
+            "reminder_mode": "daily_at_time",
+            "reminder_time_local": "09:00",
+            "reminder_interval_hours": 4,
+            "recurrence_rule": None,
+            "updated_at": "2026-06-30T09:00:00Z",
+            "deleted_at": None,
+        }
+
+        response = self.client.put("/api/v1/sync/tasks/legacy-status-1", json=payload, headers=self.headers)
+        self.assertEqual(response.status_code, 422)
+
+    def test_due_task_query_marks_past_deadline_task_overdue_and_skips_it(self) -> None:
+        async def exercise() -> tuple[list[str], Task]:
+            async with SessionLocal() as db:
+                user = await db.scalar(select(User).where(User.telegram_id == 10001))
+                assert user is not None
+                task = Task(
+                    user_id=user.id,
+                    client_task_id="runner-overdue-1",
+                    title="Runner overdue task",
+                    description=None,
+                    type=TaskType.waiting,
+                    status=TaskStatus.active,
+                    deadline_at=datetime(2026, 6, 1, 9, 0, tzinfo=UTC),
+                    remind_at=datetime(2026, 6, 30, 8, 0, tzinfo=UTC),
+                    reminder_mode=ReminderMode.daily_at_time,
+                    reminder_time_local="09:00",
+                )
+                db.add(task)
+                await db.commit()
+
+                due_tasks = await get_due_tasks(db)
+                await db.refresh(task)
+                return [item.client_task_id for item in due_tasks], task
+
+        due_ids, task = asyncio.run(exercise())
+        self.assertEqual(due_ids, [])
+        self.assertEqual(task.status, TaskStatus.overdue)
+        self.assertIsNone(task.remind_at)
+        self.assertIsNone(task.snoozed_until)

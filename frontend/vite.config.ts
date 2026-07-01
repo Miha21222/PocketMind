@@ -26,8 +26,10 @@ function spa404Fallback(): Plugin {
 }
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), "");
+  const envDir = resolve(process.cwd(), "..");
+  const env = loadEnv(mode, envDir, "");
   return {
+    envDir,
     base: env.VITE_BASE_PATH || "/",
     plugins: [react(), spa404Fallback()],
     server: {

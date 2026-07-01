@@ -76,11 +76,12 @@ Frontend auth flow:
 4. It calls `POST /api/v1/auth/telegram`.
 5. It stores the returned JWT in memory through `setAuthToken`.
 
-Local preview bypass: when `VITE_LOCAL_PREVIEW=true` (set only by `frontend/.env.preview`,
-loaded via `npm run dev:local` / `scripts/preview-frontend.ps1`), `useTelegramAuth`
+Local preview bypass: when Vite runs in mode `preview` (via `npm run dev:local` /
+`scripts/preview-frontend.ps1`), `useTelegramAuth`
 short-circuits to an authenticated stub user with no backend call, so the app runs fully
-on `localStorage` for UI work. The production GitHub Pages build (mode `production`) never
-sets the flag, so this branch is dead in prod.
+on `localStorage` for UI work. A manual `VITE_LOCAL_PREVIEW=true` override from the
+single repo-root `.env` still works, but the production GitHub Pages build (mode
+`production`) never enters preview mode, so this branch is dead in prod.
 
 Frontend task flow:
 
@@ -204,7 +205,7 @@ Scheduler behavior:
 
 ## Settings And Environment
 
-Environment variables are documented in `.env.example`:
+Environment variables now live in the single repo-root `.env`:
 
 - `BOT_TOKEN`
 - `DATABASE_URL`

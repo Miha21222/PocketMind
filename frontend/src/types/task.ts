@@ -1,9 +1,5 @@
 export type TaskType = "quick" | "deadline" | "no_deadline" | "recurring" | "waiting";
-// "active" is the single status the app produces for any task that hasn't been
-// snoozed, completed or cancelled. The legacy new/planned/reminded values are
-// retained only so tasks synced from the backend stay type-safe; they are
-// displayed as "active" too.
-export type TaskStatus = "active" | "new" | "planned" | "reminded" | "snoozed" | "done" | "cancelled";
+export type TaskStatus = "active" | "overdue" | "snoozed" | "done" | "cancelled";
 export type TaskReminderMode = "none" | "daily_at_time" | "every_n_hours" | "once_at_time";
 
 export interface LocalTask {
@@ -37,6 +33,7 @@ export interface TaskListResponse {
 export interface SyncTaskRecord {
   client_task_id: string;
   title: string;
+  description: string | null;
   type: TaskType;
   status: TaskStatus;
   deadline_at: string | null;

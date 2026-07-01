@@ -1,12 +1,20 @@
 import { PropsWithChildren, useEffect, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, FileText, House, Languages, ListTodo, PlusSquare, Settings as SettingsIcon } from "lucide-react";
 import { useAppSettings } from "../contexts/AppSettingsContext";
 import { useToast } from "../contexts/ToastContext";
+import { TASKS_ALL_QUERY_KEY } from "../features/tasks/cache";
+import { taskListViewForTask } from "../features/tasks/selectors";
 import { hasTaskCreateDraft, TASK_CREATE_DRAFT_UPDATED_EVENT } from "../features/tasks/taskCreateDraft";
+import { TASK_LIST_TYPE_STORAGE_KEY, TASK_LIST_VIEW_STORAGE_KEY } from "../features/tasks/viewPreferences";
+import { writeStoredEnumValue } from "../hooks/usePersistentEnumState";
 import { hapticImpact, hapticSelection } from "../utils/haptics";
 import { TranslationKey } from "../i18n/translations";
 import { AppLanguage } from "../types/settings";
+import { Task } from "../types/task";
+
+const TASK_DETAIL_PATH = /^\/tasks\/[^/]+$/;
 
 const LANGUAGE_CYCLE: AppLanguage[] = ["en", "ru", "uk"];
 
@@ -19,6 +27,7 @@ export function Layout({ children }: PropsWithChildren) {
   const { showToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const pageTitle = getPageTitle(location.pathname, t);
   const [hasCreateDraft, setHasCreateDraft] = useState(() => hasTaskCreateDraft());
   const isTaskCreatePage = location.pathname === "/tasks/new";
@@ -34,6 +43,29 @@ export function Layout({ children }: PropsWithChildren) {
     window.addEventListener(TASK_CREATE_DRAFT_UPDATED_EVENT, syncDraftState);
     return () => window.removeEventListener(TASK_CREATE_DRAFT_UPDATED_EVENT, syncDraftState);
   }, []);
+
+  // A task opened straight from a bot notification deep link is the first
+  // (and only) entry in this tab's history, so there is nothing for
+  // navigate(-1) to pop back to. Detect that case via location.key (react-router
+  // sets it to "default" only for that initial entry) and fall back to the
+  // task list, resetting its persisted filters so the task is actually visible there.
+  const handleBack = () => {
+    hapticImpact("light");
+    if (location.key !== "default") {
+      navigate(-1);
+      return;
+    }
+    const isTaskDetail = TASK_DETAIL_PATH.test(location.pathname);
+    if (isTaskDetail) {
+      const taskId = location.pathname.split("/")[2];
+      const task = (queryClient.getQueryData<Task[]>(TASKS_ALL_QUERY_KEY) ?? []).find((item) => item.id === taskId);
+      writeStoredEnumValue(TASK_LIST_VIEW_STORAGE_KEY, task ? taskListViewForTask(task) : "active");
+      writeStoredEnumValue(TASK_LIST_TYPE_STORAGE_KEY, "all");
+      navigate("/tasks", { replace: true });
+      return;
+    }
+    navigate("/", { replace: true });
+  };
 
   return (
     <div className="app-shell font-sans">
@@ -72,10 +104,7 @@ export function Layout({ children }: PropsWithChildren) {
           className="floating-back-btn"
           aria-label={t("back")}
           title={t("back")}
-          onClick={() => {
-            hapticImpact("light");
-            navigate(-1);
-          }}
+          onClick={handleBack}
         >
           <ArrowLeft size={34} />
         </button>
@@ -125,6 +154,8 @@ function getPageTitle(pathname: string, t: (key: TranslationKey) => string): str
   if (pathname === "/tasks/new") return t("createTask");
   if (/^\/tasks\/[^/]+\/edit$/.test(pathname)) return t("editTask");
   if (pathname.startsWith("/tasks")) return t("tasks");
+  if (pathname === "/settings/feedback") return t("rateExperience");
+  if (pathname === "/settings/bug-report") return t("reportBug");
   if (pathname === "/settings") return t("settings");
   return t("dashboard");
 }

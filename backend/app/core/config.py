@@ -15,8 +15,15 @@ class Settings(BaseSettings):
     jwt_secret: str = "change-me"
     jwt_expire_minutes: int = 60 * 24 * 7
     environment: str = "local"
+    cors_allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     default_timezone: str = "Europe/Kyiv"
     scheduler_poll_interval_seconds: int = 60
+
+    # Feedback/bug-report submissions are relayed to topics within this forum
+    # supergroup rather than DMed to an individual admin.
+    feedback_chat_id: int = -1004421534137
+    feedback_topic_id: int = 3
+    bug_report_topic_id: int = 5
 
     # Self-hosted speech-to-text (faster-whisper). The model is baked into the
     # image at build time; "small" gives better Russian accuracy than "base"
@@ -33,6 +40,14 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
+
+    @property
+    def cors_allowed_origins_list(self) -> list[str]:
+        return [
+            origin.strip().rstrip("/")
+            for origin in self.cors_allowed_origins.split(",")
+            if origin.strip()
+        ]
 
 
 @lru_cache

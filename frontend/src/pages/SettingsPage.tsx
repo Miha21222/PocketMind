@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { Bug, Star } from "lucide-react";
 import { useAppSettings } from "../contexts/AppSettingsContext";
 import { useToast } from "../contexts/ToastContext";
 import { hapticImpact, hapticNotification, useHapticsEnabled } from "../utils/haptics";
@@ -148,6 +150,20 @@ export function SettingsPage() {
           >
             <span className="toggle-knob" aria-hidden="true" />
           </button>
+        </div>
+
+        <div className="section-card-divider" />
+
+        <div className="settings-support-links">
+          <span className="filter-subgroup-title">{t("feedbackSupport")}</span>
+          <Link to="/settings/feedback" className="link-btn ghost">
+            <Star size={20} aria-hidden="true" />
+            {t("rateExperience")}
+          </Link>
+          <Link to="/settings/bug-report" className="link-btn ghost">
+            <Bug size={20} aria-hidden="true" />
+            {t("reportBug")}
+          </Link>
         </div>
 
         {hasUnsavedChanges ? (

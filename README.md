@@ -1,86 +1,97 @@
 # PocketMind
 
-PocketMind is a Telegram Mini App + bot that helps capture tasks quickly and send actionable reminders.
+PocketMind is a Telegram Mini App plus backend services for capturing tasks quickly and delivering actionable reminders.
 
-The current default architecture is:
+The current repo shape is:
 
-- static frontend on `GitHub Pages`
-- local-first task storage in browser `localStorage`
-- remote Python backend for Telegram auth, sync, bot delivery, and scheduler
-- `SQLite` on the backend host for reminder-oriented synced task data
+- a static React + TypeScript + Vite frontend in `frontend/`
+- a FastAPI backend in `backend/`
+- an aiogram bot worker for Telegram delivery
+- an APScheduler worker for reminder polling
+- a local-first task model where the browser is the primary task editor and the backend stores synced reminder-oriented state
+
+## Architecture
+
+The current production split is:
+
+- frontend deployed as a static site through GitHub Pages
+- backend API exposed separately and used for Telegram auth, task sync, health checks, and voice transcription
+- Telegram bot running as a long-polling worker
+- reminder scheduler running as a separate worker process
+- SQLite as the default backend store, with `DATABASE_URL` override support for other databases
+
+Important current behavior:
+
+- frontend tasks live locally first and sync through `/api/v1/sync/*`
+- frontend settings stay client-side in `localStorage`
+- reminder-related settings travel with each synced task as a snapshot instead of being stored as backend user settings
+- `LocalTask.id` is the stable frontend `client_task_id` used by sync routes, while bot callback actions use the backend's numeric `Task.id`
+
+## Current API Surface
+
+Active backend routes currently include:
+
+- `GET /health`
+- `POST /api/v1/auth/telegram`
+- `GET /api/v1/sync/bootstrap`
+- `GET /api/v1/sync/changes`
+- `PUT /api/v1/sync/tasks/{client_task_id}`
+- `DELETE /api/v1/sync/tasks/{client_task_id}`
+- `POST /api/v1/sync/batch`
+- `POST /api/v1/voice/transcribe`
+
+## Repository Layout
+
+- `frontend/`: Telegram Mini App UI, React Router pages, local task logic, client sync helpers, and frontend regression tests
+- `backend/`: FastAPI app, SQLAlchemy models, sync/reminder services, bot handlers, scheduler worker, Alembic migrations, and backend tests
+- `scripts/`: local preview helpers, currently including `preview-frontend.ps1` and `preview-frontend.sh`
+- `.github/workflows/github-pages.yml`: frontend Pages build and deploy workflow
+- `docker-compose.yml`: VPS-oriented backend deployment using one backend image plus `cloudflared`
 
 ## Stack
 
-- Backend: FastAPI, SQLAlchemy 2, Alembic, SQLite
+- Frontend: React 18, TypeScript, Vite, React Router, TanStack Query
+- Backend: FastAPI, SQLAlchemy 2, Alembic
 - Bot: aiogram 3
-- Reminder runner: local APScheduler worker
-- Frontend: React + TypeScript + Vite
-- Deployment: GitHub Pages (frontend) + remote Python host (backend/worker)
+- Scheduler: APScheduler
+- Speech-to-text: faster-whisper
+- Default database: SQLite
 
-## Repository layout
+## Environment
 
-- `backend/` API, DB models, bot handlers, scheduler worker
-- `frontend/` Telegram Mini App UI
-- `Dockerfile` + `docker-compose.yml` single-container backend + Cloudflare Tunnel
+The repo now uses one root `.env` file as the single env source for local work and VPS deployment.
 
-## Production architecture (GitHub Pages + Python host)
+- `docker compose` reads the root `.env` for variable substitution
+- the backend imports the same root `.env`
+- the frontend Vite config reads that same root `.env` from `frontend/` via `envDir`
 
-- Telegram Mini App frontend is built from `frontend/` and deployed to `GitHub Pages`
-- Frontend auth:
-  - `POST /api/v1/auth/telegram`
-- Frontend sync:
-  - `GET /api/v1/sync/bootstrap`
-  - `PUT /api/v1/sync/tasks/{client_task_id}`
-  - `POST /api/v1/sync/batch`
-  - `GET /api/v1/sync/changes`
-- Telegram bot runs as a long-polling worker on the backend host
-- Reminder dispatch is handled by local APScheduler in the worker process
-- Backend task data is reminder-oriented and persisted in `SQLite`
+Important backend/runtime variables in the root `.env`:
 
-## Deploy backend to a Python host
+- `BOT_TOKEN`
+- `DATABASE_URL`
+- `MINI_APP_URL`
+- `CORS_ALLOWED_ORIGINS`
+- `TUNNEL_PUBLIC_URL`
+- `TUNNEL_TOKEN`
+- `JWT_SECRET`
+- `JWT_EXPIRE_MINUTES`
+- `ENVIRONMENT`
+- `DEFAULT_TIMEZONE`
+- `SCHEDULER_POLL_INTERVAL_SECONDS`
 
-1. Copy env and set production values:
-   - `BOT_TOKEN`
-   - `DATABASE_URL` (default SQLite is fine for pet-project VPS use)
-   - `JWT_SECRET`
-   - `MINI_APP_URL` (GitHub Pages URL)
-   - `ENVIRONMENT=production`
-2. Run migrations:
-```powershell
-cd backend
-alembic upgrade head
-```
-3. Run the API process:
-```powershell
-cd backend
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-4. Run the worker process in parallel:
-```powershell
-cd backend
-python -m app.scheduler.worker
-```
-5. Run bot polling as a dedicated process:
-```powershell
-cd backend
-python -m app.bot.main
-```
+Important frontend-facing variables in the same root `.env`:
 
-## Deploy frontend to GitHub Pages
+- `VITE_API_BASE_URL`: backend base URL including `/api/v1`
+- `VITE_BASE_PATH`: deploy sub-path; keep `/` locally and let CI or production override if needed
+- `VITE_DEV_INIT_DATA`: optional browser-only Telegram init data for development outside Telegram
+- `VITE_LOCAL_PREVIEW`: optional manual override for local-only mode
 
-1. In GitHub repo settings, enable Pages with GitHub Actions as the source.
-2. Add repository variable `VITE_API_BASE_URL=https://<backend-domain>/api/v1`.
-3. Push to `main` or run the `Deploy Frontend To GitHub Pages` workflow manually.
-4. Set BotFather Mini App URL to your GitHub Pages URL.
+## Local Development
 
-## Local development
+1. Fill the required values in the root `.env`.
 
-1. Copy env template:
-```powershell
-Copy-Item .env.example .env
-```
-2. Fill required vars in `.env` (`BOT_TOKEN`, `JWT_SECRET`, URLs, secrets).
-3. Backend:
+2. Start the backend API:
+
 ```powershell
 cd backend
 python -m venv .venv
@@ -89,86 +100,125 @@ pip install -r requirements.txt
 alembic upgrade head
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
-4. Bot worker:
+
+3. In separate terminals, start the bot and scheduler:
+
 ```powershell
 cd backend
 python -m app.bot.main
 ```
-5. Scheduler worker:
+
 ```powershell
 cd backend
 python -m app.scheduler.worker
 ```
-6. Frontend:
+
+4. Start the frontend:
+
 ```powershell
 cd frontend
 npm.cmd install --cache .npm-cache
 npm.cmd run dev
 ```
 
-## Frontend-only local preview (no backend, no Telegram)
+The frontend boots from `frontend/src/main.tsx`, initializes the Telegram WebApp bridge with `ready()` and `expand()`, and mounts React Router with a basename derived from `import.meta.env.BASE_URL`.
 
-For finetuning the UI, run the Mini App entirely on browser `localStorage` — no
-backend, no bot, no Telegram auth. Task create/edit/done all work; only reminder
-delivery (which needs the backend bot/scheduler) is out of scope.
+## Frontend-Only Preview
 
-From the repo root:
+For UI work that does not need Telegram auth, the backend, or live reminder delivery:
+
 ```powershell
 ./scripts/preview-frontend.ps1
 ```
-Or directly:
+
+Or:
+
 ```powershell
 cd frontend
 npm.cmd run dev:local
 ```
 
-Then open `http://localhost:5173`. This uses Vite `--mode preview`, which loads
-`frontend/.env.preview` (`VITE_LOCAL_PREVIEW=true`); `useTelegramAuth` short-circuits
-on that flag with a local stub user. The GitHub Pages production build (mode
-`production`) never sets the flag, so the bypass cannot reach prod.
+This mode:
 
-## Deploy backend (Docker + Cloudflare Tunnel on a VPS)
+- runs fully on browser `localStorage`
+- uses the stub auth branch in `useTelegramAuth`
+- is triggered by the Vite mode used by `npm run dev:local`
+- is safe for UI polishing because the production Pages build does not load that preview mode
 
-`docker-compose.yml` runs the whole backend — API, Telegram bot poller, and reminder
-scheduler — in one self-contained image (migrations applied on start, the three
-processes supervised together, logs streamed to `docker logs`). A `cloudflared`
-service publishes it at your stable `https://api.<your-domain>` with TLS terminated
-at Cloudflare's edge, so no host ports are exposed. This is the shape to deploy on a
-VPS such as Hostinger.
+## Tests
 
-1. In the Cloudflare Zero Trust dashboard, create a Tunnel with a public hostname
-   (`api.<your-domain>`) whose Service points at `http://backend:8000`, and copy the
-   connector token.
-2. Copy env and fill values (`BOT_TOKEN`, `JWT_SECRET`, `MINI_APP_URL`, and
-   `TUNNEL_TOKEN` = the connector token):
+Frontend regression suite:
+
 ```powershell
-Copy-Item .env.example .env
-```
-3. Build and run:
-```powershell
-docker compose up -d --build   # build + start
-docker compose logs -f         # watch API + bot + scheduler + tunnel
-docker compose down            # stop (data persists)
+cd frontend
+npm.cmd run test:local
 ```
 
-SQLite persists in the `pocketmind_data` volume. For hosted use you can override
-`DATABASE_URL` to point at managed Postgres — migrations run against it the same way.
-The bot and scheduler require a valid `BOT_TOKEN`; without one they stop after a few
-retries while the API keeps running.
+Frontend build check:
 
-To run the image directly without the tunnel (e.g. a local smoke test), publish the
-port instead:
 ```powershell
-docker build -t pocketmind-backend:latest .
-docker run --rm -p 8000:8000 --env-file .env -v pocketmind_data:/app/data pocketmind-backend:latest
+cd frontend
+npm.cmd run build
 ```
-The API then answers on `http://localhost:8000` (`/health` for a readiness check).
 
-## Current MVP slice
+Backend tests:
 
-- `/start` sends greeting + Mini App button
-- `/app` opens Mini App
-- Telegram WebApp auth endpoint: `POST /api/v1/auth/telegram`
-- Local-first task CRUD in browser storage with backend sync
-- Bot reminder actions merge back into local tasks on next Mini App sync
-- Mini App pages: Home, Task list, Create, Detail, Edit
+```powershell
+cd backend
+python -m unittest discover -s tests -p "test_*.py"
+```
+
+Current frontend tests cover local task logic, auth gating, Telegram WebApp helpers, task-create draft behavior, textarea sizing, task navigation, persistent enum state, and recurring dashboard behavior. Current backend tests are centered on sync API behavior and cleanup surfaces.
+
+## Deployment
+
+### Frontend
+
+The frontend deploys through GitHub Pages using `.github/workflows/github-pages.yml`.
+
+- the workflow builds on pushes to `main` that touch `frontend/**` or the Pages workflow itself
+- it injects `VITE_BASE_PATH=/PocketMind/`
+- it expects the repository variable `VITE_API_BASE_URL`
+
+After deployment, the BotFather Mini App URL should point at the published Pages URL.
+
+### Backend on a VPS
+
+`docker-compose.yml` is the current hosted deployment shape:
+
+- `backend` service builds the image from this repo
+- `cloudflared` publishes it through a Cloudflare Tunnel
+- SQLite persists in the `pocketmind_data` volume by default
+
+Typical flow:
+
+```powershell
+docker compose up -d --build
+docker compose logs -f
+```
+
+The API is exposed internally on port `8000`, and `/health` is the basic readiness endpoint.
+
+For non-Docker hosting, you can still run the API, bot, and scheduler as separate processes with the commands from the local development section, but production should use Alembic migrations rather than relying on local startup table creation.
+
+## Git Workflow
+
+Current repo workflow for ongoing work:
+
+- make changes on `stage`
+- verify locally before calling changes ready
+- keep using the existing `stage -> main` integration flow
+- treat production readiness as after the user reviews and merges `stage` into `main`
+
+The GitHub Pages deploy workflow listens to `main`, so merge timing controls when frontend changes are eligible for production deployment.
+
+## Current User-Facing Scope
+
+The current app includes:
+
+- dashboard and task list views
+- task create, detail, and edit flows
+- multiple task types including quick, deadline, recurring, waiting, and no-deadline tasks
+- Telegram-authenticated sync with backend conflict checks based on `updated_at`
+- reminder actions from Telegram for done and snooze flows
+- voice transcription endpoint support on the backend

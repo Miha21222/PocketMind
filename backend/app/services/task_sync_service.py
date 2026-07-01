@@ -13,6 +13,12 @@ from app.services.user_settings_service import (
 )
 
 
+FINAL_TASK_STATUSES = {TaskStatus.done, TaskStatus.cancelled}
+SCHEDULABLE_TASK_STATUSES = {TaskStatus.active, TaskStatus.snoozed}
+RUNTIME_TRACKED_TASK_STATUSES = SCHEDULABLE_TASK_STATUSES | {TaskStatus.overdue}
+OVERDUE_TASK_TYPES = {TaskType.deadline, TaskType.waiting}
+
+
 def ensure_utc_datetime(value: datetime | None) -> datetime | None:
     if value is None:
         return None
@@ -36,6 +42,25 @@ _DEFAULT_RECURRING_TIME = "09:00"
 _DEFAULT_INTERVAL_HOURS = 4
 
 
+def clear_task_reminder_state(task: Task) -> None:
+    task.remind_at = None
+    task.snoozed_until = None
+
+
+def normalize_task_overdue_state(task: Task, now: datetime) -> None:
+    if task.status in FINAL_TASK_STATUSES:
+        return
+
+    deadline_at = ensure_utc_datetime(task.deadline_at)
+    if task.type in OVERDUE_TASK_TYPES and deadline_at is not None and deadline_at <= now:
+        task.status = TaskStatus.overdue
+        clear_task_reminder_state(task)
+        return
+
+    if task.status == TaskStatus.overdue:
+        task.status = TaskStatus.active
+
+
 def apply_timing_by_type(task: Task, timezone: str, now: datetime, reset_quick_timer: bool = False) -> None:
     if task.type == TaskType.quick:
         task.reminder_mode = ReminderMode.none
@@ -46,7 +71,7 @@ def apply_timing_by_type(task: Task, timezone: str, now: datetime, reset_quick_t
         if reset_quick_timer or task.remind_at is None:
             task.remind_at = now + timedelta(minutes=_DEFAULT_QUICK_DELAY_MINUTES)
         if task.status not in {TaskStatus.done, TaskStatus.cancelled}:
-            task.status = TaskStatus.planned
+            task.status = TaskStatus.active
         return
 
     if task.type == TaskType.deadline:
@@ -63,7 +88,7 @@ def apply_timing_by_type(task: Task, timezone: str, now: datetime, reset_quick_t
             deadline_at=task.deadline_at,
         )
         if task.status not in {TaskStatus.done, TaskStatus.cancelled}:
-            task.status = TaskStatus.planned if task.remind_at else TaskStatus.new
+            task.status = TaskStatus.active
         return
 
     if task.type == TaskType.waiting:
@@ -80,7 +105,7 @@ def apply_timing_by_type(task: Task, timezone: str, now: datetime, reset_quick_t
             deadline_at=task.deadline_at,
         )
         if task.status not in {TaskStatus.done, TaskStatus.cancelled}:
-            task.status = TaskStatus.planned if task.remind_at else TaskStatus.new
+            task.status = TaskStatus.active
         return
 
     if task.type == TaskType.recurring:
@@ -95,16 +120,14 @@ def apply_timing_by_type(task: Task, timezone: str, now: datetime, reset_quick_t
             hhmm=task.reminder_time_local,
         )
         if task.status not in {TaskStatus.done, TaskStatus.cancelled}:
-            task.status = TaskStatus.planned if task.remind_at else TaskStatus.new
+            task.status = TaskStatus.active
         return
 
     task.reminder_mode = ReminderMode.none
     task.reminder_time_local = None
     task.reminder_interval_hours = None
-    if task.status not in {TaskStatus.done, TaskStatus.cancelled} and task.remind_at:
-        task.status = TaskStatus.planned
-    elif task.status not in {TaskStatus.done, TaskStatus.cancelled}:
-        task.status = TaskStatus.new
+    if task.status not in {TaskStatus.done, TaskStatus.cancelled}:
+        task.status = TaskStatus.active
 
 
 def apply_sync_payload(task: Task, payload: SyncTaskUpsert, now: datetime | None = None) -> None:
@@ -131,12 +154,12 @@ def apply_sync_payload(task: Task, payload: SyncTaskUpsert, now: datetime | None
     if payload.deleted_at is not None:
         task.status = TaskStatus.cancelled
         task.cancelled_at = ensure_utc_datetime(payload.deleted_at)
-        task.remind_at = None
-        task.snoozed_until = None
+        clear_task_reminder_state(task)
         return
 
     reset_quick_timer = task.type == TaskType.quick and payload.remind_at is None
     apply_timing_by_type(task, timezone=task.reminder_timezone, now=effective_now, reset_quick_timer=reset_quick_timer)
+    normalize_task_overdue_state(task, effective_now)
 
 
 def mark_sync_task_deleted(task: Task, deleted_at: datetime | None = None) -> None:
@@ -146,15 +169,16 @@ def mark_sync_task_deleted(task: Task, deleted_at: datetime | None = None) -> No
     task.updated_at = when
     task.cancelled_at = when
     task.status = TaskStatus.cancelled
-    task.remind_at = None
-    task.snoozed_until = None
+    clear_task_reminder_state(task)
 
 
 def to_sync_record(task: Task) -> SyncTaskRecord:
     ensure_client_task_id(task)
+    normalize_task_overdue_state(task, datetime.now(UTC))
     return SyncTaskRecord(
         client_task_id=task.client_task_id,
         title=task.title,
+        description=task.description,
         type=task.type,
         status=task.status,
         deadline_at=ensure_utc_datetime(task.deadline_at),

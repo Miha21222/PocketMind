@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { cancelTask, markTaskDone } from "../../api/tasks";
+import { cancelTask, deleteTask, markTaskDone } from "../../api/tasks";
 import { useAppSettings } from "../../contexts/AppSettingsContext";
 import { useToast } from "../../contexts/ToastContext";
 import { hapticNotification } from "../../utils/haptics";
-import { scheduleTasksBackgroundRefresh, updateTaskInCache } from "./cache";
+import { removeTaskFromCache, scheduleTasksBackgroundRefresh, updateTaskInCache } from "./cache";
 
 // Shared done/cancel behaviour so the compact card and the detail view stay in
 // sync: optimistic cache update, background refresh, toast and haptic feedback.
@@ -24,6 +24,14 @@ export function useTaskActions() {
     mutationFn: cancelTask,
     onSuccess: (task) => {
       updateTaskInCache(queryClient, task);
+      scheduleTasksBackgroundRefresh(queryClient);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteTask,
+    onSuccess: (task) => {
+      removeTaskFromCache(queryClient, task.id);
       scheduleTasksBackgroundRefresh(queryClient);
     },
   });
@@ -52,5 +60,22 @@ export function useTaskActions() {
       },
     });
 
-  return { markDone, cancel, pending: doneMutation.isPending || cancelMutation.isPending };
+  const remove = (id: string) =>
+    deleteMutation.mutateAsync(id, {
+      onSuccess: () => {
+        hapticNotification("warning");
+        showToast({ tone: "success", message: t("taskDeletedMsg") });
+      },
+      onError: () => {
+        hapticNotification("error");
+        showToast({ tone: "error", message: t("taskActionFailed") });
+      },
+    });
+
+  return {
+    markDone,
+    cancel,
+    remove,
+    pending: doneMutation.isPending || cancelMutation.isPending || deleteMutation.isPending,
+  };
 }

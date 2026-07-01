@@ -9,7 +9,7 @@ class SyncTaskBase(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=5000)
     type: TaskType
-    status: TaskStatus = TaskStatus.new
+    status: TaskStatus = TaskStatus.active
     deadline_at: datetime | None = None
     remind_at: datetime | None = None
     reminder_mode: ReminderMode = ReminderMode.none
@@ -38,6 +38,7 @@ class SyncTaskRecord(BaseModel):
 
     client_task_id: str
     title: str
+    description: str | None
     type: TaskType
     status: TaskStatus
     deadline_at: datetime | None

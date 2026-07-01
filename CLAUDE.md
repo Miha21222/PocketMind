@@ -33,8 +33,8 @@ npm.cmd run build      # tsc typecheck + vite build -> frontend/dist
 
 `dev:local` (or `scripts/preview-frontend.ps1` from the repo root) runs the Mini App
 fully on localStorage with no backend and no Telegram — for UI work. It loads
-`frontend/.env.preview` (`--mode preview`), which sets `VITE_LOCAL_PREVIEW=true`; the
-`useTelegramAuth` hook short-circuits on that flag with a stub user. The production
+Vite mode `preview`; `useTelegramAuth` treats that mode itself as the local-preview
+switch and short-circuits to a stub user. The production
 (GitHub Pages) build uses mode `production` and never sets the flag, so the bypass is
 dead in prod. Reminder delivery still needs the backend bot/scheduler.
 

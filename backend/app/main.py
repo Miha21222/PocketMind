@@ -6,11 +6,14 @@ from app.core.config import get_settings
 from app.db.base import Base
 from app.db.session import engine
 
+settings = get_settings()
+
 app = FastAPI(title="PocketMind API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    # Keep CORS explicit in production. Local dev defaults come from Settings.
+    allow_origins=settings.cors_allowed_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -26,7 +29,6 @@ async def health() -> dict[str, str]:
 
 @app.on_event("startup")
 async def startup() -> None:
-    settings = get_settings()
     if settings.environment == "local":
         # Keep local bootstrap simple; production should use Alembic migrations.
         async with engine.begin() as conn:
