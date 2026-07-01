@@ -41,26 +41,21 @@ def reminder_keyboard(
 
     if waiting:
         rows = [
-            [InlineKeyboardButton(text=t(lang, "waiting_done"), callback_data=f"task:{task_id}:done")],
-            [InlineKeyboardButton(text=t(lang, "waiting_snooze"), callback_data=f"task:{task_id}:snooze{snooze_minutes}")],
+            [InlineKeyboardButton(text=t(lang, "waiting_done"), callback_data=f"task:{task_id}:done", style="success")],
+            [InlineKeyboardButton(text=t(lang, "waiting_snooze"), callback_data=f"task:{task_id}:snooze{snooze_minutes}", style="danger")],
         ]
     elif recurring:
         rows = [
-            [
-                InlineKeyboardButton(text=t(lang, "recurring_done"), callback_data=f"task:{task_id}:done"),
-                InlineKeyboardButton(text=t(lang, "recurring_snooze"), callback_data=f"task:{task_id}:snooze{snooze_minutes}"),
-            ],
+            [InlineKeyboardButton(text=t(lang, "recurring_done"), callback_data=f"task:{task_id}:done", style="success")],
+            [InlineKeyboardButton(text=t(lang, "recurring_snooze"), callback_data=f"task:{task_id}:snooze{snooze_minutes}", style="danger")],
         ]
     else:
         rows = [
-            [
-                InlineKeyboardButton(text=t(lang, "done"), callback_data=f"task:{task_id}:done"),
-                InlineKeyboardButton(text=t(lang, "snooze", minutes=snooze_minutes), callback_data=f"task:{task_id}:snooze{snooze_minutes}"),
-                InlineKeyboardButton(text=t(lang, "snooze_hour"), callback_data=f"task:{task_id}:snooze60"),
-            ],
+            [InlineKeyboardButton(text=t(lang, "done"), callback_data=f"task:{task_id}:done", style="success")],
+            [InlineKeyboardButton(text=t(lang, "snooze", minutes=snooze_minutes), callback_data=f"task:{task_id}:snooze{snooze_minutes}", style="danger")],
         ]
 
     if can_open_task:
-        rows.append([InlineKeyboardButton(text=t(lang, "open"), web_app=WebAppInfo(url=task_url))])
+        rows.append([InlineKeyboardButton(text=t(lang, "open"), web_app=WebAppInfo(url=task_url), style="primary")])
 
     return InlineKeyboardMarkup(inline_keyboard=rows)

@@ -1,4 +1,4 @@
-import { createLocalTask, getLocalTask, listLocalTasks, updateStoredTask, markStoredTaskDone, cancelStoredTask, bootstrapTaskSync } from "../features/tasks/localTaskRepository";
+import { createLocalTask, getLocalTask, listLocalTasks, updateStoredTask, markStoredTaskDone, cancelStoredTask, deleteStoredTask, bootstrapTaskSync } from "../features/tasks/localTaskRepository";
 import { UserSettings } from "../types/settings";
 import { Task, TaskListResponse, TaskReminderMode, TaskType } from "../types/task";
 
@@ -60,6 +60,10 @@ export function snoozeTask(taskId: string, minutes: number): Promise<Task> {
 
 export function cancelTask(taskId: string): Promise<Task> {
   return cancelStoredTask(taskId);
+}
+
+export function deleteTask(taskId: string): Promise<Task> {
+  return deleteStoredTask(taskId);
 }
 
 export function rescheduleTask(taskId: string, remindAt: string | null, deadlineAt: string | null): Promise<Task> {

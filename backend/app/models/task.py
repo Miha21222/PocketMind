@@ -16,9 +16,8 @@ class TaskType(str, enum.Enum):
 
 
 class TaskStatus(str, enum.Enum):
-    new = "new"
-    planned = "planned"
-    reminded = "reminded"
+    active = "active"
+    overdue = "overdue"
     snoozed = "snoozed"
     done = "done"
     cancelled = "cancelled"
@@ -41,7 +40,7 @@ class Task(Base):
     title: Mapped[str] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     type: Mapped[TaskType] = mapped_column(Enum(TaskType), default=TaskType.quick, nullable=False)
-    status: Mapped[TaskStatus] = mapped_column(Enum(TaskStatus), default=TaskStatus.new, nullable=False)
+    status: Mapped[TaskStatus] = mapped_column(Enum(TaskStatus), default=TaskStatus.active, nullable=False)
     deadline_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     remind_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     reminder_mode: Mapped[ReminderMode] = mapped_column(

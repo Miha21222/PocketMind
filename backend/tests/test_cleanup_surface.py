@@ -41,6 +41,26 @@ class CleanupSurfaceTests(unittest.TestCase):
         self.assertEqual(self.client.get("/api/v1/settings/me").status_code, 404)
         self.assertEqual(self.client.patch("/api/v1/settings/me", json={}).status_code, 404)
 
+    def test_local_cors_allows_frontend_preview_origin(self) -> None:
+        response = self.client.options(
+            "/health",
+            headers={
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        self.assertEqual(response.headers.get("access-control-allow-origin"), "http://localhost:5173")
+
+    def test_cors_does_not_reflect_unknown_origin(self) -> None:
+        response = self.client.options(
+            "/health",
+            headers={
+                "Origin": "https://evil.example",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        self.assertIsNone(response.headers.get("access-control-allow-origin"))
+
     def test_reminder_open_button_uses_client_task_id(self) -> None:
         keyboard = reminder_keyboard(task_id=77, open_task_id="task-uuid-123", lang="en", default_snooze_minutes=15)
         open_row = keyboard.inline_keyboard[-1][0]

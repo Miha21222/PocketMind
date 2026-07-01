@@ -11,10 +11,10 @@
 #   docker compose logs -f           # watch API + bot + scheduler + tunnel
 #   docker compose down              # stop (SQLite data persists in the volume)
 #
-# Requires a .env file (copy .env.example and fill BOT_TOKEN, JWT_SECRET,
-# MINI_APP_URL, TUNNEL_TOKEN, ...). In the Cloudflare Zero Trust dashboard the
-# tunnel's public hostname (api.<your-domain>) Service must point at
-# http://backend:8000.
+# Requires one repo-root .env file. Docker Compose reads it for substitution,
+# the backend imports it via env_file, and the frontend Vite config now reads
+# the same root file too. In Cloudflare Zero Trust the tunnel hostname
+# (api.<your-domain>) Service must point at http://backend:8000.
 services:
   backend:
     build:

@@ -10,12 +10,11 @@ interface AuthState {
   user: AuthUser | null;
 }
 
-// Dev-only local preview: when VITE_LOCAL_PREVIEW=true the app skips Telegram
-// auth and the backend entirely and runs fully on localStorage. The flag lives
-// only in frontend/.env.preview (loaded by `npm run dev:local`); the GitHub
-// Pages production build uses mode "production" and never sets it, so this
-// branch is unreachable in production.
-const LOCAL_PREVIEW = import.meta.env.VITE_LOCAL_PREVIEW === "true";
+// Dev-only local preview: `npm run dev:local` runs Vite in mode "preview", and
+// that mode alone is enough to force the app into local-only auth/storage mode.
+// A manual VITE_LOCAL_PREVIEW=true override still works from the single repo
+// root .env when someone needs it.
+const LOCAL_PREVIEW = import.meta.env.MODE === "preview" || import.meta.env.VITE_LOCAL_PREVIEW === "true";
 
 const PREVIEW_USER: AuthUser = {
   id: 0,

@@ -8,5 +8,5 @@
     "noEmit": false,
     "types": ["vite/client"]
   },
-  "include": ["src/features/tasks/localTasks.ts", "src/types/task.ts", "tests/**/*.ts"]
+  "include": ["src/features/tasks/localTasks.ts", "src/features/tasks/selectors.ts", "src/types/task.ts", "tests/**/*.ts"]
 }

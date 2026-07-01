@@ -57,6 +57,12 @@ export function mergeTaskIntoCache(queryClient: QueryClient, task: Task) {
   updateTaskInCache(queryClient, task);
 }
 
+export function removeTaskFromCache(queryClient: QueryClient, taskId: string) {
+  queryClient.setQueryData<Task[]>(TASKS_ALL_QUERY_KEY, (current) =>
+    current ? current.filter((task) => task.id !== taskId) : current,
+  );
+}
+
 export function scheduleTasksBackgroundRefresh(queryClient: QueryClient, delayMs = 1000) {
   if (tasksRefreshTimer) {
     clearTimeout(tasksRefreshTimer);

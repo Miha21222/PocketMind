@@ -32,16 +32,17 @@ RUN apt-get update \
 COPY backend /app/backend
 
 # Normalize line endings (in case the script was checked out with CRLF on Windows)
-# and make the entrypoint executable.
+# and make the helper scripts executable.
 RUN sed -i 's/\r$//' /app/backend/docker/entrypoint.sh \
- && chmod +x /app/backend/docker/entrypoint.sh
+ && sed -i 's/\r$//' /app/backend/docker/healthcheck.sh \
+ && chmod +x /app/backend/docker/entrypoint.sh /app/backend/docker/healthcheck.sh
 
 WORKDIR /app/backend
 
 EXPOSE 8000
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=25s --retries=5 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health').read()" || exit 1
+  CMD ["/app/backend/docker/healthcheck.sh"]
 
 # Default command runs the whole backend (migrations + API + bot + scheduler).
 # Passing an explicit command overrides this and runs it as-is.

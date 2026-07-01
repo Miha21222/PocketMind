@@ -21,6 +21,10 @@ function toIso(timestamp: number | null): string | null {
   return timestamp === null ? null : new Date(timestamp).toISOString();
 }
 
+function supportsDeadlineOverdue(task: Task): boolean {
+  return task.type === "deadline" || task.type === "waiting";
+}
+
 function nextDailyReminderTimestamp(nowTs: number, hhmm: string, timezone: string): number | null {
   const todayKey = zonedDayKeyFromTimestamp(nowTs, timezone);
   let candidate = zonedDateTimeToUtcTimestamp(todayKey, hhmm, timezone);
@@ -68,6 +72,10 @@ function capByDeadline(candidateTs: number | null, deadlineAt: string | null): n
 
 function currentTaskScheduleTimestamp(task: Task): number | null {
   return toTimestamp(task.remind_at) ?? toTimestamp(task.deadline_at);
+}
+
+function overdueDeadlineTimestamp(task: Task): number | null {
+  return supportsDeadlineOverdue(task) ? toTimestamp(task.deadline_at) : null;
 }
 
 function taskActivationTimestamp(task: Task): number {
@@ -130,12 +138,22 @@ export function sortTasks(tasks: Task[]): Task[] {
   });
 }
 
-// "Overdue" is a derived status: an active task whose current actionable instant
-// is already behind it, whether that instant came from a reminder or a deadline.
+// "Overdue" is reserved for deadline-bearing tasks once their deadline has passed.
 export function isTaskOverdue(task: Task, now = Date.now()): boolean {
-  if (isFinal(task)) return false;
-  const scheduleTs = currentTaskScheduleTimestamp(task);
-  return isActionableOccurrence(task, scheduleTs) && scheduleTs < now;
+  if (isFinal(task) || !supportsDeadlineOverdue(task)) return false;
+  const deadlineTs = overdueDeadlineTimestamp(task);
+  if (!isActionableOccurrence(task, deadlineTs)) return false;
+  return deadlineTs < now;
+}
+
+// Which of the four TASK_LIST_VIEWS filter values a task falls under, so a
+// task opened from outside the list (e.g. a bot notification deep link) can
+// be brought back into view by resetting the persisted filter to match it.
+export function taskListViewForTask(task: Task, now = Date.now()): "active" | "overdue" | "completed" | "cancelled" {
+  if (task.status === "done") return "completed";
+  if (task.status === "cancelled") return "cancelled";
+  if (isTaskOverdue(task, now)) return "overdue";
+  return "active";
 }
 
 export function filterTasksByView(tasks: Task[], view: TaskView, now = new Date(), timezone = "UTC"): Task[] {
@@ -187,7 +205,7 @@ function primaryTaskTimestamp(task: Task): number | null {
 
 function dashboardInstantTimestamp(task: Task, view: DashboardView, nowTs: number, timezone: string): number | null {
   if (view === "overdue") {
-    return currentTaskScheduleTimestamp(task);
+    return overdueDeadlineTimestamp(task);
   }
   return nextTaskScheduleTimestamp(task, nowTs, timezone);
 }

@@ -5,6 +5,7 @@ import { addDaysToDayKey, addMonthsToDayKey, zonedDateTimeToUtcTimestamp, zonedD
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
 const DAY_MS = 24 * HOUR_MS;
+const FINAL_STATUSES: TaskStatus[] = ["done", "cancelled"];
 
 function toIso(date: Date): string {
   return date.toISOString();
@@ -18,6 +19,14 @@ function parseIso(value: string | null): number | null {
 
 function timestampOrZero(value: string | null): number {
   return parseIso(value) ?? 0;
+}
+
+function isFinalStatus(status: TaskStatus): boolean {
+  return FINAL_STATUSES.includes(status);
+}
+
+function supportsDeadlineOverdue(task: Pick<LocalTask, "type" | "deadline_at">): boolean {
+  return (task.type === "deadline" || task.type === "waiting") && parseIso(task.deadline_at) !== null;
 }
 
 function generateTaskId(): string {
@@ -83,6 +92,46 @@ function capByDeadline(candidate: string | null, deadlineAt: string | null): str
   return timestampOrZero(candidate) > timestampOrZero(deadlineAt) ? null : candidate;
 }
 
+export function normalizeDeadlineOverdue(task: LocalTask, now = new Date()): LocalTask {
+  const next: LocalTask = { ...task };
+  if (isFinalStatus(next.status)) {
+    return next;
+  }
+
+  if (next.status !== "active" && next.status !== "overdue" && next.status !== "snoozed") {
+    next.status = "active";
+  }
+
+  if (!supportsDeadlineOverdue(next)) {
+    if (next.status === "overdue") {
+      next.status = "active";
+    }
+    return next;
+  }
+
+  const deadlineTs = parseIso(next.deadline_at);
+  if (deadlineTs === null) {
+    return next;
+  }
+
+  if (deadlineTs < now.getTime()) {
+    next.status = "overdue";
+    next.remind_at = null;
+    next.snoozed_until = null;
+    return next;
+  }
+
+  if (next.status === "overdue") {
+    next.status = "active";
+  }
+
+  return next;
+}
+
+export function normalizeTasksForSyncBootstrap(tasks: LocalTask[], now = new Date()): LocalTask[] {
+  return tasks.map((task) => normalizeDeadlineOverdue(task, now));
+}
+
 function applyTiming(task: LocalTask, settings: UserSettings, now = new Date()): LocalTask {
   const next: LocalTask = { ...task };
   const nowMs = now.getTime();
@@ -94,10 +143,10 @@ function applyTiming(task: LocalTask, settings: UserSettings, now = new Date()):
     next.deadline_at = null;
     next.recurrence_rule = null;
     next.remind_at = toIso(new Date(nowMs + settings.default_quick_delay_minutes * MINUTE_MS));
-    if (next.status !== "done" && next.status !== "cancelled") {
+    if (!isFinalStatus(next.status)) {
       next.status = "active";
     }
-    return next;
+    return normalizeDeadlineOverdue(next, now);
   }
 
   if (next.type === "deadline" || next.type === "waiting") {
@@ -115,10 +164,10 @@ function applyTiming(task: LocalTask, settings: UserSettings, now = new Date()):
     } else {
       next.remind_at = null;
     }
-    if (next.status !== "done" && next.status !== "cancelled") {
+    if (!isFinalStatus(next.status)) {
       next.status = "active";
     }
-    return next;
+    return normalizeDeadlineOverdue(next, now);
   }
 
   if (next.type === "recurring") {
@@ -126,19 +175,19 @@ function applyTiming(task: LocalTask, settings: UserSettings, now = new Date()):
     next.reminder_mode = "none";
     next.reminder_interval_hours = null;
     next.remind_at = nextRecurringReminder(nowMs, next.recurrence_rule, next.reminder_time_local, settings.timezone);
-    if (next.status !== "done" && next.status !== "cancelled") {
+    if (!isFinalStatus(next.status)) {
       next.status = "active";
     }
-    return next;
+    return normalizeDeadlineOverdue(next, now);
   }
 
   next.reminder_mode = "none";
   next.reminder_time_local = null;
   next.reminder_interval_hours = null;
-  if (next.status !== "done" && next.status !== "cancelled") {
-    next.status = next.remind_at ? "planned" : "new";
+  if (!isFinalStatus(next.status)) {
+    next.status = "active";
   }
-  return next;
+  return normalizeDeadlineOverdue(next, now);
 }
 
 export interface LocalTaskMutationPayload {
@@ -239,11 +288,24 @@ export function cancelLocalTask(task: LocalTask, now = new Date()): LocalTask {
   };
 }
 
-export function rehydrateLocalTask(remoteTask: SyncTaskRecord): LocalTask {
+export function deleteLocalTask(task: LocalTask, now = new Date()): LocalTask {
+  const nowIso = toIso(now);
   return {
+    ...task,
+    status: "cancelled",
+    cancelled_at: nowIso,
+    deleted_at: nowIso,
+    updated_at: nowIso,
+    remind_at: null,
+    snoozed_until: null,
+  };
+}
+
+export function rehydrateLocalTask(remoteTask: SyncTaskRecord, now = new Date()): LocalTask {
+  return normalizeDeadlineOverdue({
     id: remoteTask.client_task_id,
     title: remoteTask.title,
-    description: "",
+    description: remoteTask.description ?? "",
     type: remoteTask.type,
     status: remoteTask.status,
     deadline_at: remoteTask.deadline_at,
@@ -259,17 +321,18 @@ export function rehydrateLocalTask(remoteTask: SyncTaskRecord): LocalTask {
     cancelled_at: remoteTask.cancelled_at,
     last_reminded_at: remoteTask.last_reminded_at,
     deleted_at: remoteTask.deleted_at,
-  };
+  }, now);
 }
 
-export function mergeRemoteTaskIntoLocal(localTask: LocalTask, remoteTask: SyncTaskRecord): LocalTask {
+export function mergeRemoteTaskIntoLocal(localTask: LocalTask, remoteTask: SyncTaskRecord, now = new Date()): LocalTask {
   if (timestampOrZero(remoteTask.updated_at) <= timestampOrZero(localTask.updated_at)) {
     return localTask;
   }
 
-  return {
+  return normalizeDeadlineOverdue({
     ...localTask,
     title: remoteTask.title,
+    description: remoteTask.description ?? localTask.description,
     type: remoteTask.type,
     status: remoteTask.status,
     deadline_at: remoteTask.deadline_at,
@@ -283,18 +346,15 @@ export function mergeRemoteTaskIntoLocal(localTask: LocalTask, remoteTask: SyncT
     cancelled_at: remoteTask.cancelled_at,
     last_reminded_at: remoteTask.last_reminded_at,
     deleted_at: remoteTask.deleted_at,
-    snoozed_until:
-      remoteTask.status === "snoozed" || remoteTask.status === "planned" || remoteTask.status === "active"
-        ? remoteTask.remind_at
-        : localTask.snoozed_until,
-  };
+    snoozed_until: remoteTask.status === "snoozed" || remoteTask.status === "active" ? remoteTask.remind_at : localTask.snoozed_until,
+  }, now);
 }
 
-export function mergeRemoteTasksIntoLocal(localTasks: LocalTask[], remoteTasks: SyncTaskRecord[]): LocalTask[] {
+export function mergeRemoteTasksIntoLocal(localTasks: LocalTask[], remoteTasks: SyncTaskRecord[], now = new Date()): LocalTask[] {
   const byId = new Map(localTasks.map((task) => [task.id, task]));
   for (const remoteTask of remoteTasks) {
     const current = byId.get(remoteTask.client_task_id);
-    byId.set(remoteTask.client_task_id, current ? mergeRemoteTaskIntoLocal(current, remoteTask) : rehydrateLocalTask(remoteTask));
+    byId.set(remoteTask.client_task_id, current ? mergeRemoteTaskIntoLocal(current, remoteTask, now) : rehydrateLocalTask(remoteTask, now));
   }
   return [...byId.values()];
 }
@@ -311,6 +371,7 @@ export function createPlaceholderSyncRecord(task: LocalTask): SyncTaskRecord {
   return {
     client_task_id: task.id,
     title: task.title,
+    description: task.description,
     type: task.type,
     status: task.status,
     deadline_at: task.deadline_at,

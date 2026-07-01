@@ -6,10 +6,12 @@ import {
   buildTaskFromPayload,
   cancelLocalTask,
   createPlaceholderSyncRecord,
+  deleteLocalTask,
   isTaskVisible,
   markLocalTaskDone,
   mergeRemoteTaskIntoLocal,
   mergeRemoteTasksIntoLocal,
+  normalizeTasksForSyncBootstrap,
   sortLocalTasks,
   updateLocalTask,
   type LocalTaskMutationPayload,
@@ -121,8 +123,15 @@ export async function cancelStoredTask(taskId: string): Promise<Task> {
   return persistTaskWithSync(nextTask);
 }
 
+export async function deleteStoredTask(taskId: string): Promise<Task> {
+  const current = await getLocalTask(taskId);
+  const nextTask = deleteLocalTask(current);
+  return persistTaskWithSync(nextTask);
+}
+
 export async function bootstrapTaskSync(): Promise<Task[]> {
-  const localTasks = readTaskStore();
+  const localTasks = normalizeTasksForSyncBootstrap(readTaskStore());
+  writeTaskStore(localTasks);
   try {
     const response =
       localTasks.length > 0
@@ -133,11 +142,17 @@ export async function bootstrapTaskSync(): Promise<Task[]> {
             })),
           })
         : await bootstrapSync();
-    const merged = mergeRemoteTasksIntoLocal(localTasks, response.items);
+    // Re-read the store instead of reusing the pre-request `localTasks` snapshot:
+    // a user action (e.g. deleting a task) can land in localStorage while this
+    // network round trip is in flight, and merging against the stale snapshot
+    // would resurrect it (mergeRemoteTaskIntoLocal keeps the local side whenever
+    // its updated_at is newer, but only if it's given the current local side).
+    const currentLocalTasks = readTaskStore();
+    const merged = mergeRemoteTasksIntoLocal(currentLocalTasks, response.items);
     writeTaskStore(merged);
     return sortLocalTasks(merged.filter(isTaskVisible));
   } catch {
-    return sortLocalTasks(localTasks.filter(isTaskVisible));
+    return sortLocalTasks(readTaskStore().filter(isTaskVisible));
   }
 }
 

@@ -12,7 +12,7 @@ if str(BACKEND_ROOT) not in sys.path:
 
 from app.core.config import get_settings
 from app.db.base import Base
-from app.models import reminder_log, task, user  # noqa: F401
+from app.models import feedback, reminder_log, task, user  # noqa: F401
 
 config = context.config
 settings = get_settings()

@@ -6,6 +6,8 @@ import { ToastProvider } from "./contexts/ToastContext";
 import { translations } from "./i18n/translations";
 import { OpenInTelegram } from "./components/OpenInTelegram";
 import { hasTelegramLaunchData, shouldShowTelegramGate } from "./authGate";
+import { BugReportPage } from "./pages/BugReportPage";
+import { FeedbackRatingPage } from "./pages/FeedbackRatingPage";
 import { HomePage } from "./pages/HomePage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TaskCreatePage } from "./pages/TaskCreatePage";
@@ -65,6 +67,8 @@ export default function App() {
             <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
             <Route path="/tasks/:taskId/edit" element={<TaskEditPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/settings/feedback" element={<FeedbackRatingPage />} />
+            <Route path="/settings/bug-report" element={<BugReportPage />} />
           </Routes>
         </Layout>
       </ToastProvider>

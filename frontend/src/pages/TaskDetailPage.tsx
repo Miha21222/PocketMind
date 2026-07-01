@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ListTodo, Pencil, X } from "lucide-react";
+import { Check, ListTodo, Pencil, Trash2, X } from "lucide-react";
 import { getTask } from "../api/tasks";
 import { LoadingState } from "../components/LoadingState";
 import { useAppSettings } from "../contexts/AppSettingsContext";
@@ -29,7 +29,7 @@ export function TaskDetailPage() {
     enabled: shouldFetchFallback,
   });
   const task = taskFromCache ?? taskFallbackQuery.data;
-  const { markDone, cancel, pending } = useTaskActions();
+  const { markDone, cancel, remove, pending } = useTaskActions();
 
   useEffect(() => {
     if (taskFallbackQuery.data && !taskFromCache) {
@@ -82,42 +82,64 @@ export function TaskDetailPage() {
           )}
         </dl>
 
-        {!isFinal && (
-          <div className="task-card-actions task-detail-actions">
-            <button
-              type="button"
-              className="icon-btn success"
-              disabled={pending}
-              aria-label={t("done")}
-              title={t("done")}
-              onClick={() => markDone(task.id)}
-            >
-              <Check size={22} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              className="icon-btn danger"
-              disabled={pending}
-              aria-label={t("cancel")}
-              title={t("cancel")}
-              onClick={() => cancel(task.id)}
-            >
-              <X size={22} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              className="icon-btn ghost"
-              aria-label={t("edit")}
-              title={t("edit")}
-              onClick={() => {
-                const state: TaskEditNavigationState = { returnTo: location.pathname };
-                navigate(`/tasks/${task.id}/edit`, { state });
-              }}
-            >
-              <Pencil size={22} aria-hidden="true" />
-            </button>
-          </div>
-        )}
+        <div className="section-card-divider" />
+
+        <div className="task-card-actions task-detail-actions">
+          {!isFinal && (
+            <>
+              <button
+                type="button"
+                className="icon-btn success"
+                disabled={pending}
+                aria-label={t("done")}
+                title={t("done")}
+                onClick={() => markDone(task.id)}
+              >
+                <Check size={22} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className="icon-btn danger"
+                disabled={pending}
+                aria-label={t("cancel")}
+                title={t("cancel")}
+                onClick={() => cancel(task.id)}
+              >
+                <X size={22} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className="icon-btn ghost"
+                aria-label={t("edit")}
+                title={t("edit")}
+                onClick={() => {
+                  const state: TaskEditNavigationState = { returnTo: location.pathname };
+                  navigate(`/tasks/${task.id}/edit`, { state });
+                }}
+              >
+                <Pencil size={22} aria-hidden="true" />
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            className="icon-btn ghost-danger"
+            disabled={pending}
+            aria-label={t("delete")}
+            title={t("delete")}
+            onClick={async () => {
+              if (!window.confirm(t("confirmDeleteTask"))) return;
+              try {
+                await remove(task.id);
+                navigate("/tasks");
+              } catch {
+                // failure toast already shown by useTaskActions
+              }
+            }}
+          >
+            <Trash2 size={22} aria-hidden="true" />
+          </button>
+        </div>
       </article>
     </section>
   );

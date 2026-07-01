@@ -105,6 +105,8 @@ export type TranslationKey =
   | "taskMarkedDone"
   | "taskActionFailed"
   | "taskCancelledMsg"
+  | "confirmDeleteTask"
+  | "taskDeletedMsg"
   | "languageUpdated"
   | "voiceInput"
   | "voiceRecording"
@@ -115,7 +117,26 @@ export type TranslationKey =
   | "openInTelegramTitle"
   | "openInTelegramSubtitle"
   | "openInTelegramButton"
-  | "openInTelegramRedirecting";
+  | "openInTelegramRedirecting"
+  | "feedbackSupport"
+  | "rateExperience"
+  | "reportBug"
+  | "feedbackRatingLabel"
+  | "feedbackCommentLabel"
+  | "feedbackCommentPlaceholder"
+  | "bugDescriptionLabel"
+  | "bugDescriptionPlaceholder"
+  | "errorRatingRequired"
+  | "errorBugDescriptionRequired"
+  | "feedbackSent"
+  | "feedbackSendError"
+  | "send"
+  | "screenshotFieldLabel"
+  | "attachScreenshot"
+  | "removeScreenshot"
+  | "errorScreenshotType"
+  | "errorScreenshotTooLarge"
+  | "feedbackScreenshotUploadFailed";
 
 export const translations: Record<AppLanguage, Record<TranslationKey, string>> = {
   en: {
@@ -223,6 +244,8 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     taskMarkedDone: "Task marked done",
     taskActionFailed: "Task action failed",
     taskCancelledMsg: "Task cancelled",
+    confirmDeleteTask: "Delete this task? This can't be undone.",
+    taskDeletedMsg: "Task deleted",
     languageUpdated: "Language updated",
     voiceInput: "Voice input",
     voiceRecording: "Recording… tap to stop",
@@ -234,6 +257,25 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     openInTelegramSubtitle: "PocketMind lives inside Telegram. Tap below to open the bot and launch the app",
     openInTelegramButton: "Open in Telegram",
     openInTelegramRedirecting: "Redirecting to Telegram…",
+    feedbackSupport: "Feedback & Support",
+    rateExperience: "Rate your experience",
+    reportBug: "Report a bug",
+    feedbackRatingLabel: "How would you rate your experience?",
+    feedbackCommentLabel: "Comment (optional)",
+    feedbackCommentPlaceholder: "Anything you'd like to add?",
+    bugDescriptionLabel: "What went wrong?",
+    bugDescriptionPlaceholder: "Describe the issue and how to reproduce it",
+    errorRatingRequired: "Please select a rating",
+    errorBugDescriptionRequired: "Please describe the issue",
+    feedbackSent: "Thanks for your feedback!",
+    feedbackSendError: "Couldn't send feedback. Please try again.",
+    send: "Send",
+    screenshotFieldLabel: "Screenshot (optional)",
+    attachScreenshot: "Attach a screenshot",
+    removeScreenshot: "Remove screenshot",
+    errorScreenshotType: "Please choose an image file",
+    errorScreenshotTooLarge: "Image must be smaller than 8 MB",
+    feedbackScreenshotUploadFailed: "Report sent, but the screenshot failed to upload",
   },
   ru: {
     appTitle: "PocketMind",
@@ -309,7 +351,7 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     failedLoadTask: "Не удалось загрузить задачу",
     timezone: "Часовой пояс",
     language: "Язык",
-    defaultSnooze: "Снуз по умолчанию (минуты)",
+    defaultSnooze: "Отложить по умолчанию (минуты)",
     defaultQuickDelay: "Задержка напоминания быстрой задачи (минуты)",
     defaultDeadlineReminderMode: "Режим напоминаний дедлайна по умолчанию",
     defaultDeadlineReminderTime: "Время напоминаний дедлайна по умолчанию",
@@ -340,6 +382,8 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     taskMarkedDone: "Задача отмечена выполненной",
     taskActionFailed: "Не удалось выполнить действие",
     taskCancelledMsg: "Задача отменена",
+    confirmDeleteTask: "Удалить эту задачу? Это действие нельзя отменить.",
+    taskDeletedMsg: "Задача удалена",
     languageUpdated: "Язык обновлён",
     voiceInput: "Голосовой ввод",
     voiceRecording: "Запись… нажмите, чтобы остановить",
@@ -351,6 +395,25 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     openInTelegramSubtitle: "PocketMind работает внутри Telegram. Нажмите кнопку, чтобы открыть бота и запустить приложение",
     openInTelegramButton: "Открыть в Telegram",
     openInTelegramRedirecting: "Перенаправляем в Telegram…",
+    feedbackSupport: "Отзывы и поддержка",
+    rateExperience: "Оценить приложение",
+    reportBug: "Сообщить об ошибке",
+    feedbackRatingLabel: "Как бы вы оценили приложение?",
+    feedbackCommentLabel: "Комментарий (необязательно)",
+    feedbackCommentPlaceholder: "Хотите что-то добавить?",
+    bugDescriptionLabel: "Что пошло не так?",
+    bugDescriptionPlaceholder: "Опишите проблему и как её воспроизвести",
+    errorRatingRequired: "Пожалуйста, выберите оценку",
+    errorBugDescriptionRequired: "Пожалуйста, опишите проблему",
+    feedbackSent: "Спасибо за отзыв!",
+    feedbackSendError: "Не удалось отправить отзыв. Попробуйте ещё раз.",
+    send: "Отправить",
+    screenshotFieldLabel: "Скриншот (необязательно)",
+    attachScreenshot: "Прикрепить скриншот",
+    removeScreenshot: "Убрать скриншот",
+    errorScreenshotType: "Пожалуйста, выберите файл изображения",
+    errorScreenshotTooLarge: "Изображение должно быть меньше 8 МБ",
+    feedbackScreenshotUploadFailed: "Обращение отправлено, но скриншот не удалось загрузить",
   },
   uk: {
     appTitle: "PocketMind",
@@ -426,7 +489,7 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     failedLoadTask: "Не вдалося завантажити завдання",
     timezone: "Часовий пояс",
     language: "Мова",
-    defaultSnooze: "Снуз за замовчуванням (хвилини)",
+    defaultSnooze: "Відкласти за замовчуванням (хвилини)",
     defaultQuickDelay: "Затримка нагадування швидкої задачі (хвилини)",
     defaultDeadlineReminderMode: "Режим нагадувань дедлайну за замовчуванням",
     defaultDeadlineReminderTime: "Час нагадувань дедлайну за замовчуванням",
@@ -457,6 +520,8 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     taskMarkedDone: "Завдання позначено виконаним",
     taskActionFailed: "Не вдалося виконати дію",
     taskCancelledMsg: "Завдання скасовано",
+    confirmDeleteTask: "Видалити це завдання? Цю дію не можна скасувати.",
+    taskDeletedMsg: "Завдання видалено",
     languageUpdated: "Мову оновлено",
     voiceInput: "Голосове введення",
     voiceRecording: "Запис… натисніть, щоб зупинити",
@@ -468,5 +533,24 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     openInTelegramSubtitle: "PocketMind працює всередині Telegram. Натисніть кнопку, щоб відкрити бота та запустити застосунок",
     openInTelegramButton: "Відкрити в Telegram",
     openInTelegramRedirecting: "Перенаправляємо в Telegram…",
+    feedbackSupport: "Відгуки та підтримка",
+    rateExperience: "Оцінити застосунок",
+    reportBug: "Повідомити про помилку",
+    feedbackRatingLabel: "Як би ви оцінили застосунок?",
+    feedbackCommentLabel: "Коментар (необов'язково)",
+    feedbackCommentPlaceholder: "Хочете щось додати?",
+    bugDescriptionLabel: "Що пішло не так?",
+    bugDescriptionPlaceholder: "Опишіть проблему і як її відтворити",
+    errorRatingRequired: "Будь ласка, оберіть оцінку",
+    errorBugDescriptionRequired: "Будь ласка, опишіть проблему",
+    feedbackSent: "Дякуємо за відгук!",
+    feedbackSendError: "Не вдалося надіслати відгук. Спробуйте ще раз.",
+    send: "Надіслати",
+    screenshotFieldLabel: "Скріншот (необов'язково)",
+    attachScreenshot: "Прикріпити скріншот",
+    removeScreenshot: "Прибрати скріншот",
+    errorScreenshotType: "Будь ласка, оберіть файл зображення",
+    errorScreenshotTooLarge: "Зображення має бути менше 8 МБ",
+    feedbackScreenshotUploadFailed: "Звернення надіслано, але скріншот не вдалося завантажити",
   },
 };

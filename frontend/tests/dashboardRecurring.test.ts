@@ -45,11 +45,12 @@ const kyivNow = new Date("2026-06-26T12:05:00.000Z");
 {
   const staleDailyRecurring = buildTask({});
 
-  assertEqual(isTaskOverdue(staleDailyRecurring, now.getTime()), true);
+  assertEqual(isTaskOverdue(staleDailyRecurring, now.getTime()), false);
   assertTaskIds(getDashboardSchedule([staleDailyRecurring], "today", now), []);
   assertTaskIds(getDashboardSchedule([staleDailyRecurring], "tomorrow", now), ["task-1"]);
   assertTaskIds(getDashboardSchedule([staleDailyRecurring], "soon", now), ["task-1"]);
-  assertTaskIds(applyTaskFilters([staleDailyRecurring], "overdue", "all", now), ["task-1"]);
+  assertTaskIds(getDashboardSchedule([staleDailyRecurring], "overdue", now), []);
+  assertTaskIds(applyTaskFilters([staleDailyRecurring], "overdue", "all", now), []);
   assertEqual(getDashboardTaskInstant(staleDailyRecurring, "tomorrow", now), "2026-06-27T09:00:00.000Z");
 }
 
@@ -92,11 +93,43 @@ const kyivNow = new Date("2026-06-26T12:05:00.000Z");
     recurrence_rule: null,
   });
 
-  assertEqual(isTaskOverdue(repeatingDeadlineReminder, now.getTime()), true);
+  assertEqual(isTaskOverdue(repeatingDeadlineReminder, now.getTime()), false);
   assertTaskIds(getDashboardSchedule([repeatingDeadlineReminder], "today", now), []);
   assertTaskIds(getDashboardSchedule([repeatingDeadlineReminder], "tomorrow", now), ["task-3"]);
   assertTaskIds(getDashboardSchedule([repeatingDeadlineReminder], "soon", now), ["task-3"]);
   assertEqual(getDashboardTaskInstant(repeatingDeadlineReminder, "tomorrow", now), "2026-06-27T09:00:00.000Z");
+}
+
+{
+  const overdueDeadline = buildTask({
+    id: "task-3-overdue",
+    type: "deadline",
+    status: "overdue",
+    deadline_at: "2026-06-25T18:00:00.000Z",
+    remind_at: null,
+    reminder_mode: "daily_at_time",
+    recurrence_rule: null,
+  });
+
+  assertEqual(isTaskOverdue(overdueDeadline, now.getTime()), true);
+  assertTaskIds(getDashboardSchedule([overdueDeadline], "overdue", now), ["task-3-overdue"]);
+  assertTaskIds(applyTaskFilters([overdueDeadline], "overdue", "all", now), ["task-3-overdue"]);
+}
+
+{
+  const invalidFutureOverdue = buildTask({
+    id: "task-3-future-overdue",
+    type: "deadline",
+    status: "overdue",
+    deadline_at: "2026-06-27T18:00:00.000Z",
+    remind_at: null,
+    reminder_mode: "daily_at_time",
+    recurrence_rule: null,
+  });
+
+  assertEqual(isTaskOverdue(invalidFutureOverdue, now.getTime()), false);
+  assertTaskIds(getDashboardSchedule([invalidFutureOverdue], "overdue", now), []);
+  assertTaskIds(applyTaskFilters([invalidFutureOverdue], "overdue", "all", now), []);
 }
 
 {
