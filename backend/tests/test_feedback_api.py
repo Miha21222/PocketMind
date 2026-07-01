@@ -80,7 +80,7 @@ class FeedbackApiTests(unittest.TestCase):
     def test_submit_rating(self) -> None:
         response = self.client.post(
             "/api/v1/feedback",
-            json={"kind": "rating", "rating": 5, "message": "Loved it"},
+            data={"kind": "rating", "rating": "5", "message": "Loved it"},
             headers=self.headers,
         )
 
@@ -101,7 +101,7 @@ class FeedbackApiTests(unittest.TestCase):
     def test_submit_bug_report(self) -> None:
         response = self.client.post(
             "/api/v1/feedback",
-            json={"kind": "bug", "message": "The delete button does nothing"},
+            data={"kind": "bug", "message": "The delete button does nothing"},
             headers=self.headers,
         )
 
@@ -117,11 +117,12 @@ class FeedbackApiTests(unittest.TestCase):
         self.assertEqual(record.kind, FeedbackKind.bug)
         self.assertIsNone(record.rating)
         self.assertEqual(record.message, "The delete button does nothing")
+        self.assertIsNone(record.screenshot_path)
 
     def test_rating_without_rating_value_is_rejected(self) -> None:
         response = self.client.post(
             "/api/v1/feedback",
-            json={"kind": "rating"},
+            data={"kind": "rating"},
             headers=self.headers,
         )
 
@@ -130,28 +131,22 @@ class FeedbackApiTests(unittest.TestCase):
     def test_bug_report_without_message_is_rejected(self) -> None:
         response = self.client.post(
             "/api/v1/feedback",
-            json={"kind": "bug"},
+            data={"kind": "bug"},
             headers=self.headers,
         )
 
         self.assertEqual(response.status_code, 422)
 
-    def test_upload_screenshot_success(self) -> None:
-        create_response = self.client.post(
-            "/api/v1/feedback",
-            json={"kind": "bug", "message": "Broken layout"},
-            headers=self.headers,
-        )
-        feedback_id = create_response.json()["id"]
-
+    def test_bug_report_with_screenshot(self) -> None:
         response = self.client.post(
-            f"/api/v1/feedback/{feedback_id}/screenshot",
-            files={"file": ("screenshot.png", FAKE_IMAGE_BYTES, "image/png")},
+            "/api/v1/feedback",
+            data={"kind": "bug", "message": "Broken layout"},
+            files={"screenshot": ("screenshot.png", FAKE_IMAGE_BYTES, "image/png")},
             headers=self.headers,
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.json()["ok"])
+        feedback_id = response.json()["id"]
 
         async def fetch() -> Feedback | None:
             async with SessionLocal() as db:
@@ -162,57 +157,15 @@ class FeedbackApiTests(unittest.TestCase):
         self.assertTrue(Path(record.screenshot_path).exists())
         self.assertEqual(Path(record.screenshot_path).read_bytes(), FAKE_IMAGE_BYTES)
 
-    def test_upload_screenshot_rejects_non_image(self) -> None:
-        create_response = self.client.post(
-            "/api/v1/feedback",
-            json={"kind": "bug", "message": "Broken layout"},
-            headers=self.headers,
-        )
-        feedback_id = create_response.json()["id"]
-
+    def test_bug_report_screenshot_rejects_non_image(self) -> None:
         response = self.client.post(
-            f"/api/v1/feedback/{feedback_id}/screenshot",
-            files={"file": ("notes.txt", b"not an image", "text/plain")},
+            "/api/v1/feedback",
+            data={"kind": "bug", "message": "Broken layout"},
+            files={"screenshot": ("notes.txt", b"not an image", "text/plain")},
             headers=self.headers,
         )
 
         self.assertEqual(response.status_code, 400)
-
-    def test_upload_screenshot_missing_feedback_returns_404(self) -> None:
-        response = self.client.post(
-            "/api/v1/feedback/999999/screenshot",
-            files={"file": ("screenshot.png", FAKE_IMAGE_BYTES, "image/png")},
-            headers=self.headers,
-        )
-
-        self.assertEqual(response.status_code, 404)
-
-    def test_upload_screenshot_rejects_other_users_feedback(self) -> None:
-        create_response = self.client.post(
-            "/api/v1/feedback",
-            json={"kind": "bug", "message": "Broken layout"},
-            headers=self.headers,
-        )
-        feedback_id = create_response.json()["id"]
-
-        async def seed_other_user() -> User:
-            async with SessionLocal() as db:
-                other = User(telegram_id=20002, username="someone_else", language_code="en")
-                db.add(other)
-                await db.commit()
-                await db.refresh(other)
-                return other
-
-        other_user = asyncio.run(seed_other_user())
-        other_token = create_access_token(subject=str(other_user.id))
-
-        response = self.client.post(
-            f"/api/v1/feedback/{feedback_id}/screenshot",
-            files={"file": ("screenshot.png", FAKE_IMAGE_BYTES, "image/png")},
-            headers={"Authorization": f"Bearer {other_token}"},
-        )
-
-        self.assertEqual(response.status_code, 404)
 
 
 if __name__ == "__main__":

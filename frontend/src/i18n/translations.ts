@@ -135,8 +135,7 @@ export type TranslationKey =
   | "attachScreenshot"
   | "removeScreenshot"
   | "errorScreenshotType"
-  | "errorScreenshotTooLarge"
-  | "feedbackScreenshotUploadFailed";
+  | "errorScreenshotTooLarge";
 
 export const translations: Record<AppLanguage, Record<TranslationKey, string>> = {
   en: {
@@ -275,7 +274,6 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     removeScreenshot: "Remove screenshot",
     errorScreenshotType: "Please choose an image file",
     errorScreenshotTooLarge: "Image must be smaller than 8 MB",
-    feedbackScreenshotUploadFailed: "Report sent, but the screenshot failed to upload",
   },
   ru: {
     appTitle: "PocketMind",
@@ -413,7 +411,6 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     removeScreenshot: "Убрать скриншот",
     errorScreenshotType: "Пожалуйста, выберите файл изображения",
     errorScreenshotTooLarge: "Изображение должно быть меньше 8 МБ",
-    feedbackScreenshotUploadFailed: "Обращение отправлено, но скриншот не удалось загрузить",
   },
   uk: {
     appTitle: "PocketMind",
@@ -551,6 +548,5 @@ export const translations: Record<AppLanguage, Record<TranslationKey, string>> =
     removeScreenshot: "Прибрати скріншот",
     errorScreenshotType: "Будь ласка, оберіть файл зображення",
     errorScreenshotTooLarge: "Зображення має бути менше 8 МБ",
-    feedbackScreenshotUploadFailed: "Звернення надіслано, але скріншот не вдалося завантажити",
   },
 };
