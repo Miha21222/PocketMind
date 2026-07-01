@@ -8,6 +8,7 @@ import { useAppSettings } from "../contexts/AppSettingsContext";
 import { mergeTaskIntoCache, useTasksAllQuery } from "../features/tasks/cache";
 import { isTaskOverdue } from "../features/tasks/selectors";
 import { useTaskActions } from "../features/tasks/useTaskActions";
+import { showConfirm } from "../telegramWebApp";
 import { formatInTimezone } from "../utils/dateTime";
 import { TaskEditNavigationState } from "../utils/taskNavigation";
 import { taskStatusLabel, taskTypeLabel } from "../utils/taskLabels";
@@ -128,7 +129,7 @@ export function TaskDetailPage() {
             aria-label={t("delete")}
             title={t("delete")}
             onClick={async () => {
-              if (!window.confirm(t("confirmDeleteTask"))) return;
+              if (!(await showConfirm(t("confirmDeleteTask")))) return;
               try {
                 await remove(task.id);
                 navigate("/tasks");
