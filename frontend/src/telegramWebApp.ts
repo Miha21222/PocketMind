@@ -13,6 +13,7 @@ export interface TelegramWebAppControls {
   ready?: () => void;
   expand?: () => void;
   HapticFeedback?: TelegramHapticFeedback;
+  showConfirm?: (message: string, callback: (confirmed: boolean) => void) => void;
 }
 
 interface TelegramWindow extends Window {
@@ -33,4 +34,15 @@ export function initializeTelegramWebApp(webApp: TelegramWebAppControls | undefi
   // not the desired UX.
   webApp?.ready?.();
   webApp?.expand?.();
+}
+
+// The blocking browser window.confirm() desyncs the Telegram Android WebView's
+// touch event routing once dismissed, leaving parts of the page unclickable
+// until the app is restarted. Telegram's own showConfirm() is non-blocking and
+// avoids that; fall back to window.confirm outside of Telegram (e.g. dev:local).
+export function showConfirm(message: string, webApp: TelegramWebAppControls | undefined = getTelegramWebApp()): Promise<boolean> {
+  if (webApp?.showConfirm) {
+    return new Promise((resolve) => webApp.showConfirm!(message, resolve));
+  }
+  return Promise.resolve(typeof window === "undefined" ? false : window.confirm(message));
 }
