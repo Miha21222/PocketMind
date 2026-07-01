@@ -1,4 +1,5 @@
 import { Route, Routes } from "react-router-dom";
+import { RotateCcw } from "lucide-react";
 import { Layout } from "./components/Layout";
 import { LoadingState } from "./components/LoadingState";
 import { AppSettingsProvider } from "./contexts/AppSettingsContext";
@@ -33,7 +34,21 @@ export default function App() {
       authError: auth.error,
       hasTelegramInitData: hasTelegramLaunchData(),
     });
-    if (!showTelegramGate) return <p className="center-state error">{text.authFailed}: {auth.error}</p>;
+    if (!showTelegramGate) {
+      return (
+        <div className="tg-gate">
+          <div className="tg-gate-card">
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="PocketMind" className="tg-gate-logo" />
+            <h1 className="tg-gate-title">{gt.authFailed}</h1>
+            <p className="tg-gate-subtitle">{auth.error}</p>
+            <button type="button" className="tg-gate-btn" onClick={() => window.location.reload()}>
+              <RotateCcw size={18} />
+              {gt.retry}
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <OpenInTelegram
         title={gt.openInTelegramTitle}
