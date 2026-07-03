@@ -41,17 +41,14 @@ def reminder_keyboard(
 
     if waiting:
         rows = [
-            [InlineKeyboardButton(text=t(lang, "waiting_done"), callback_data=f"task:{task_id}:done", style="success")],
             [InlineKeyboardButton(text=t(lang, "waiting_snooze"), callback_data=f"task:{task_id}:snooze{snooze_minutes}", style="danger")],
         ]
     elif recurring:
         rows = [
-            [InlineKeyboardButton(text=t(lang, "recurring_done"), callback_data=f"task:{task_id}:done", style="success")],
             [InlineKeyboardButton(text=t(lang, "recurring_snooze"), callback_data=f"task:{task_id}:snooze{snooze_minutes}", style="danger")],
         ]
     else:
         rows = [
-            [InlineKeyboardButton(text=t(lang, "done"), callback_data=f"task:{task_id}:done", style="success")],
             [InlineKeyboardButton(text=t(lang, "snooze", minutes=snooze_minutes), callback_data=f"task:{task_id}:snooze{snooze_minutes}", style="danger")],
         ]
 

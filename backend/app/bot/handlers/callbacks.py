@@ -9,8 +9,9 @@ from app.models.reminder_log import ReminderLog, ReminderStatus
 from app.models.task import Task, TaskStatus
 from app.models.user import User
 from app.services.reminder_cleanup_service import cleanup_task_reminder_messages
-from app.services.task_actions import complete_task, snooze_task
-from app.services.user_settings_service import normalize_language, normalize_timezone
+from app.services.reminder_log_service import reconcile_pending_reminder_log
+from app.services.task_actions import snooze_task
+from app.services.user_settings_service import normalize_language
 
 router = Router()
 
@@ -89,16 +90,14 @@ async def on_task_action(callback: CallbackQuery) -> None:
             await _cleanup_reminder_message(callback)
             return
 
-        if action == "done":
-            complete_task(task, timezone=normalize_timezone(task.reminder_timezone))
-            notice = t(lang, "cb_marked_done")
-        elif action.startswith("snooze"):
+        if action.startswith("snooze"):
             try:
                 minutes = int(action.removeprefix("snooze"))
             except ValueError:
                 await callback.answer(t(lang, "cb_unknown_action"), show_alert=True)
                 return
             snooze_task(task, minutes)
+            await reconcile_pending_reminder_log(db, task)
             notice = t(lang, "cb_snoozed", minutes=minutes)
         else:
             await callback.answer(t(lang, "cb_unknown_action"), show_alert=True)

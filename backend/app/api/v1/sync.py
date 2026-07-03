@@ -9,6 +9,7 @@ from app.db.session import get_db
 from app.models.task import Task
 from app.models.user import User
 from app.schemas.sync import SyncBatchRequest, SyncTaskListResponse, SyncTaskUpsert, SyncTaskUpsertResponse
+from app.services.reminder_log_service import reconcile_pending_reminder_log
 from app.services.task_sync_service import (
     apply_sync_payload,
     ensure_client_task_id,
@@ -84,6 +85,7 @@ async def upsert_sync_task(
         db.add(task)
 
     apply_sync_payload(task, payload=payload)
+    await reconcile_pending_reminder_log(db, task)
     await db.commit()
     await db.refresh(task)
     return SyncTaskUpsertResponse(applied=True, task=to_sync_record(task))
@@ -100,6 +102,7 @@ async def delete_sync_task(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
 
     mark_sync_task_deleted(task)
+    await reconcile_pending_reminder_log(db, task)
     await db.commit()
     await db.refresh(task)
     return SyncTaskUpsertResponse(applied=True, task=to_sync_record(task))
@@ -127,6 +130,7 @@ async def sync_batch(
             )
             db.add(existing)
         apply_sync_payload(existing, payload=SyncTaskUpsert(**item.model_dump(exclude={"client_task_id"})))
+        await reconcile_pending_reminder_log(db, existing)
 
     await db.commit()
     return await bootstrap_sync(db=db, current_user=current_user)

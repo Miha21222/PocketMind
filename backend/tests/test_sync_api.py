@@ -23,6 +23,7 @@ from app.core.security import create_access_token
 from app.db.base import Base
 from app.db.session import SessionLocal, engine
 from app.main import app
+from app.models.reminder_log import ReminderLog, ReminderStatus
 from app.models.task import ReminderMode, Task, TaskStatus, TaskType
 from app.models.user import User
 from app.services.task_service import get_due_tasks
@@ -300,3 +301,124 @@ class SyncApiTests(unittest.TestCase):
         self.assertEqual(task.status, TaskStatus.overdue)
         self.assertIsNone(task.remind_at)
         self.assertIsNone(task.snoozed_until)
+
+    def _reminder_logs_for_client_task(self, client_task_id: str) -> list[ReminderLog]:
+        async def fetch() -> list[ReminderLog]:
+            async with SessionLocal() as db:
+                task = await db.scalar(select(Task).where(Task.client_task_id == client_task_id))
+                assert task is not None
+                logs = (await db.scalars(select(ReminderLog).where(ReminderLog.task_id == task.id))).all()
+                return list(logs)
+
+        return asyncio.run(fetch())
+
+    def test_put_sync_task_creates_single_pending_reminder_log(self) -> None:
+        payload = {
+            "title": "Deadline with interval reminder",
+            "type": "deadline",
+            "status": "active",
+            "description": None,
+            "deadline_at": "2099-01-01T00:00:00Z",
+            "remind_at": None,
+            "reminder_mode": "every_n_hours",
+            "reminder_time_local": None,
+            "reminder_interval_hours": 4,
+            "recurrence_rule": None,
+            "updated_at": "2026-06-15T09:00:00Z",
+            "deleted_at": None,
+        }
+
+        response = self.client.put("/api/v1/sync/tasks/pending-log-1", json=payload, headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        remind_at = response.json()["task"]["remind_at"]
+        self.assertIsNotNone(remind_at)
+
+        logs = self._reminder_logs_for_client_task("pending-log-1")
+        self.assertEqual(len(logs), 1)
+        self.assertEqual(logs[0].status, ReminderStatus.pending)
+
+    def test_put_sync_task_twice_supersedes_stale_pending_row(self) -> None:
+        base = {
+            "title": "Deadline with interval reminder",
+            "type": "deadline",
+            "status": "active",
+            "description": None,
+            "deadline_at": "2099-01-01T00:00:00Z",
+            "remind_at": None,
+            "reminder_mode": "every_n_hours",
+            "reminder_time_local": None,
+            "reminder_interval_hours": 4,
+            "recurrence_rule": None,
+            "deleted_at": None,
+        }
+
+        first = self.client.put(
+            "/api/v1/sync/tasks/pending-log-2",
+            json={**base, "updated_at": "2026-06-15T09:00:00Z"},
+            headers=self.headers,
+        )
+        self.assertEqual(first.status_code, 200)
+        second = self.client.put(
+            "/api/v1/sync/tasks/pending-log-2",
+            json={**base, "reminder_interval_hours": 6, "updated_at": "2026-06-15T10:00:00Z"},
+            headers=self.headers,
+        )
+        self.assertEqual(second.status_code, 200)
+
+        logs = self._reminder_logs_for_client_task("pending-log-2")
+        self.assertEqual(len(logs), 2)
+        statuses = sorted(log.status for log in logs)
+        self.assertEqual(statuses, sorted([ReminderStatus.cancelled, ReminderStatus.pending]))
+
+    def test_delete_sync_task_cancels_pending_reminder_log(self) -> None:
+        payload = {
+            "title": "Deadline task to delete",
+            "type": "deadline",
+            "status": "active",
+            "description": None,
+            "deadline_at": "2099-01-01T00:00:00Z",
+            "remind_at": None,
+            "reminder_mode": "every_n_hours",
+            "reminder_time_local": None,
+            "reminder_interval_hours": 4,
+            "recurrence_rule": None,
+            "updated_at": "2026-06-15T09:00:00Z",
+            "deleted_at": None,
+        }
+        put_response = self.client.put("/api/v1/sync/tasks/pending-log-3", json=payload, headers=self.headers)
+        self.assertEqual(put_response.status_code, 200)
+
+        delete_response = self.client.delete("/api/v1/sync/tasks/pending-log-3", headers=self.headers)
+        self.assertEqual(delete_response.status_code, 200)
+
+        logs = self._reminder_logs_for_client_task("pending-log-3")
+        self.assertTrue(len(logs) >= 1)
+        self.assertTrue(all(log.status != ReminderStatus.pending for log in logs))
+
+    def test_sync_batch_creates_pending_reminder_log_for_new_task(self) -> None:
+        payload = {
+            "tasks": [
+                {
+                    "client_task_id": "pending-log-batch-1",
+                    "title": "Batch deadline task",
+                    "type": "deadline",
+                    "status": "active",
+                    "description": None,
+                    "deadline_at": "2099-01-01T00:00:00Z",
+                    "remind_at": None,
+                    "reminder_mode": "every_n_hours",
+                    "reminder_time_local": None,
+                    "reminder_interval_hours": 4,
+                    "recurrence_rule": None,
+                    "updated_at": "2026-06-15T09:00:00Z",
+                    "deleted_at": None,
+                }
+            ]
+        }
+
+        response = self.client.post("/api/v1/sync/batch", json=payload, headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        logs = self._reminder_logs_for_client_task("pending-log-batch-1")
+        self.assertEqual(len(logs), 1)
+        self.assertEqual(logs[0].status, ReminderStatus.pending)

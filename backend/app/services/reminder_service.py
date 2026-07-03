@@ -1,6 +1,8 @@
-﻿from datetime import UTC, datetime
+﻿import logging
+from datetime import UTC, datetime
 
 from aiogram import Bot
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot.i18n import resolve_user_language, t
@@ -8,10 +10,13 @@ from app.bot.keyboards import reminder_keyboard
 from app.models.reminder_log import ReminderLog, ReminderStatus
 from app.models.task import Task, TaskStatus, TaskType
 from app.models.user import User
+from app.services.reminder_log_service import reconcile_pending_reminder_log
 from app.services.reminder_planning_service import assign_next_reminder_after_send
 from app.services.task_sync_service import ensure_utc_datetime, normalize_task_overdue_state
 from app.services.user_settings_service import normalize_language, normalize_timezone
 
+
+logger = logging.getLogger(__name__)
 
 _DESCRIPTION_DISPLAY_LIMIT = 300
 
@@ -63,14 +68,24 @@ async def send_task_reminder(db: AsyncSession, bot: Bot, task: Task, user: User)
         return
     lang = normalize_language(task.reminder_language) if task.reminder_language else resolve_user_language(user)
     snooze_minutes = task.snooze_minutes if task.snooze_minutes else 15
-    log_entry = ReminderLog(
-        task_id=task.id,
-        user_id=user.id,
-        scheduled_for=task.remind_at or now,
-        status=ReminderStatus.pending,
+
+    log_entry = await db.scalar(
+        select(ReminderLog)
+        .where(ReminderLog.task_id == task.id, ReminderLog.status == ReminderStatus.pending)
+        .order_by(ReminderLog.id.desc())
     )
-    db.add(log_entry)
-    await db.flush()
+    if log_entry is None:
+        # No pending row was pre-scheduled for this reminder (legacy task predating this
+        # flow, or a reconcile call site was missed) — self-heal by logging one now.
+        logger.warning("No pending ReminderLog found for task=%s; creating one ad hoc", task.id)
+        log_entry = ReminderLog(
+            task_id=task.id,
+            user_id=user.id,
+            scheduled_for=task.remind_at or now,
+            status=ReminderStatus.pending,
+        )
+        db.add(log_entry)
+        await db.flush()
 
     try:
         sent_message = await bot.send_message(
@@ -85,16 +100,31 @@ async def send_task_reminder(db: AsyncSession, bot: Bot, task: Task, user: User)
                 default_snooze_minutes=snooze_minutes,
             ),
         )
-        log_entry.status = ReminderStatus.sent
-        log_entry.chat_id = sent_message.chat.id
-        log_entry.message_id = sent_message.message_id
-        log_entry.sent_at = now
-        task.last_reminded_at = now
-
-        timezone = normalize_timezone(task.reminder_timezone)
-        assign_next_reminder_after_send(task, timezone)
-        normalize_task_overdue_state(task, now)
     except Exception as exc:  # noqa: BLE001
         log_entry.status = ReminderStatus.failed
         log_entry.error_message = str(exc)
         raise
+
+    # Phase A: the message is now irreversibly delivered. Record that durable fact, alone,
+    # and commit immediately — nothing here may depend on a later step succeeding.
+    log_entry.status = ReminderStatus.sent
+    log_entry.chat_id = sent_message.chat.id
+    log_entry.message_id = sent_message.message_id
+    log_entry.sent_at = now
+    task.last_reminded_at = now
+    # Clearing remind_at here (rather than only via assign_next_reminder_after_send in Phase
+    # B) guarantees get_due_tasks won't re-pick this task up even if Phase B fails outright.
+    task.remind_at = None
+    await db.commit()
+
+    # Phase B: best-effort scheduling of the next reminder. A failure here must never be able
+    # to resurrect Phase A, so it is isolated in its own transaction and swallowed on error.
+    try:
+        timezone = normalize_timezone(task.reminder_timezone)
+        assign_next_reminder_after_send(task, timezone)
+        normalize_task_overdue_state(task, now)
+        await reconcile_pending_reminder_log(db, task)
+        await db.commit()
+    except Exception:  # noqa: BLE001
+        await db.rollback()
+        logger.exception("Failed to schedule next reminder for task=%s after send", task.id)
