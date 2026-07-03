@@ -20,6 +20,19 @@ def parse_hhmm(value: str | None, fallback: str = "09:00") -> time:
     return time(hour=h, minute=m)
 
 
+def _ensure_utc(value: datetime | None) -> datetime | None:
+    # SQLAlchemy + SQLite round-trips DateTime(timezone=True) columns as naive
+    # datetimes, so a task's deadline_at loaded fresh from the DB (e.g. inside
+    # get_due_tasks -> send_task_reminder) may lack tzinfo even though it was
+    # stored as UTC. Comparing that against the tz-aware candidates this module
+    # computes would raise TypeError, so every entry point normalizes first.
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
 def combine_local_to_utc(day: date, hhmm: str | None, timezone: str) -> datetime:
     local_tz = ZoneInfo(timezone)
     local_dt = datetime.combine(day, parse_hhmm(hhmm), tzinfo=local_tz)
@@ -36,6 +49,7 @@ def next_daily_reminder(now_utc: datetime, timezone: str, hhmm: str | None) -> d
 
 
 def one_time_reminder_on_deadline(deadline_at: datetime | None, timezone: str, hhmm: str | None) -> datetime | None:
+    deadline_at = _ensure_utc(deadline_at)
     if deadline_at is None:
         return None
     local_tz = ZoneInfo(timezone)
@@ -105,6 +119,7 @@ def next_strategy_reminder(
     interval_hours: int | None,
     deadline_at: datetime | None = None,
 ) -> datetime | None:
+    deadline_at = _ensure_utc(deadline_at)
     candidate: datetime | None
     if mode == ReminderMode.none:
         return None

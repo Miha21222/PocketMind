@@ -65,3 +65,18 @@ class CleanupSurfaceTests(unittest.TestCase):
         keyboard = reminder_keyboard(task_id=77, open_task_id="task-uuid-123", lang="en", default_snooze_minutes=15)
         open_row = keyboard.inline_keyboard[-1][0]
         self.assertTrue(open_row.web_app.url.endswith("/tasks/task-uuid-123"))
+
+    def test_reminder_keyboard_has_no_done_button(self) -> None:
+        # Completion now only happens in-app; the Telegram keyboard must never
+        # offer a "done" action, for the default, waiting, and recurring variants.
+        for kwargs in (
+            {"waiting": False, "recurring": False},
+            {"waiting": True, "recurring": False},
+            {"waiting": False, "recurring": True},
+        ):
+            keyboard = reminder_keyboard(
+                task_id=77, open_task_id="task-uuid-123", lang="en", default_snooze_minutes=15, **kwargs
+            )
+            buttons = [button for row in keyboard.inline_keyboard for button in row]
+            self.assertEqual(len(keyboard.inline_keyboard), 2, kwargs)
+            self.assertTrue(all((button.callback_data or "") != "task:77:done" for button in buttons), kwargs)
