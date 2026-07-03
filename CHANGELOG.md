@@ -5,6 +5,31 @@ All notable changes to PocketMind are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project follows [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-07-03
+
+### Fixed
+
+- Reminders for deadline/waiting tasks with a deadline set could be resent on
+  every scheduler poll (every 60s) indefinitely instead of firing once. Two
+  causes, both fixed:
+  - `assign_next_reminder_after_send` compared a tz-aware computed reminder
+    time against `task.deadline_at`, which SQLAlchemy + SQLite returns naive
+    on a fresh load — raising a `TypeError` on nearly every send for a task
+    with a deadline. `deadline_at` is now normalized to UTC before comparing.
+  - Sending the Telegram message and scheduling the next reminder happened in
+    one transaction; a failure after a successful send rolled back the "sent"
+    mark too, so the next poll resent the same message. Sending is now split
+    into two independently-committed phases, and `ReminderLog.status`
+    (`pending → sent/cancelled`) is reconciled as a durable audit trail at
+    every point `remind_at` changes (sync, snooze, overdue transitions,
+    post-send).
+
+### Changed
+
+- Task completion is now app-only. The Telegram reminder keyboard's "Done"
+  button and its bot callback have been removed (Snooze and Open remain);
+  completing a task always goes through the frontend's task-state ownership.
+
 ## [1.0.0] - 2026-07-03
 
 Initial tracked release. This tag is the baseline the project starts versioning
