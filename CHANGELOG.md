@@ -5,6 +5,16 @@ All notable changes to PocketMind are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project follows [Semantic Versioning](https://semver.org/).
 
+## [1.1.1] - 2026-07-03
+
+### Fixed
+
+- Task status pill (e.g. "Активна") in the task list stretched taller or
+  shorter depending on how many lines the task title wrapped to, because the
+  row's default flex `align-items: stretch` sized the badge to match the
+  title's height. The row now uses `align-items: flex-start` and the badge is
+  `flex-shrink: 0`, so it stays a fixed size regardless of title length.
+
 ## [1.1.0] - 2026-07-03
 
 ### Fixed
