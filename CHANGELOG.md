@@ -5,6 +5,19 @@ All notable changes to PocketMind are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project follows [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-07-06
+
+### Changed
+
+- Voice input now starts recording on a single tap of the field mic button,
+  instead of requiring a second tap on a button inside the recording modal
+  (the native browser microphone permission prompt still appears once per
+  session, which can't be removed).
+- Recording now uses voice-activity detection instead of relying purely on
+  the user to tap stop: it auto-cancels (no transcription) if no speech is
+  heard within ~5s of starting, and auto-stops (transcribes) once the user
+  goes quiet again after speaking, so most recordings need no manual stop.
+
 ## [1.1.1] - 2026-07-03
 
 ### Fixed
