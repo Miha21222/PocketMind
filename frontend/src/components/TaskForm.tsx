@@ -47,6 +47,10 @@ function VoiceRecorderModal({
     onClose();
   };
 
+  useEffect(() => {
+    if (voice.timedOut) onClose();
+  }, [voice.timedOut, onClose]);
+
   const handleToggle = () => {
     if (recording) {
       voice.stop();
@@ -208,6 +212,14 @@ export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFo
     const current = getValues(field).trim();
     setValue(field, current ? `${current} ${text}` : text, { shouldValidate: true });
   };
+  const startVoiceFor = (field: "title" | "description") => {
+    setVoiceTarget(field);
+    voice.start((text) => {
+      const trimmed = text.trim();
+      if (trimmed) appendToField(field)(trimmed);
+      setVoiceTarget(null);
+    });
+  };
   const prevTypeRef = useRef<TaskType | null>(null);
   const readCurrentFormValues = (): TaskFormValues => {
     const current = getValues();
@@ -328,7 +340,7 @@ export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFo
           <button
             type="button"
             className="voice-mic"
-            onClick={() => setVoiceTarget("title")}
+            onClick={() => startVoiceFor("title")}
             aria-label={t("voiceInput")}
             title={t("voiceInput")}
           >
@@ -365,7 +377,7 @@ export function TaskForm({ initial, onSubmit, onValuesChange, onDelete }: TaskFo
           <button
             type="button"
             className="voice-mic"
-            onClick={() => setVoiceTarget("description")}
+            onClick={() => startVoiceFor("description")}
             aria-label={t("voiceInput")}
             title={t("voiceInput")}
           >
