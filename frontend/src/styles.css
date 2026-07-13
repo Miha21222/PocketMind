@@ -831,8 +831,16 @@ button.ghost,
 .keyboard-overlay-active .bottom-nav,
 .keyboard-overlay-active .floating-create-btn,
 .keyboard-overlay-active .floating-back-btn {
-  transform: translateY(var(--keyboard-overlay-offset));
+  transform: translate3d(0, var(--keyboard-overlay-offset), 0);
   pointer-events: none;
+}
+
+/* The viewport offset changes on every keyboard-animation frame. The normal
+   press transition would make floating controls trail that correction and
+   visibly bounce, so compensation must be applied without interpolation. */
+.keyboard-overlay-active .floating-create-btn,
+.keyboard-overlay-active .floating-back-btn {
+  transition: none;
 }
 
 .reschedule-box {
