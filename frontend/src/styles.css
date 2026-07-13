@@ -44,7 +44,7 @@ a {
   max-width: 760px;
   margin: 0 auto;
   min-height: 100vh;
-  min-height: var(--tg-viewport-stable-height, 100vh);
+  min-height: var(--app-stable-viewport-height, var(--tg-viewport-stable-height, 100vh));
   padding: 92px 16px 172px;
   overflow-x: hidden;
 }
@@ -823,6 +823,16 @@ button.ghost,
 .floating-create-btn:active {
   transform: translateY(1px) scale(0.97);
   filter: brightness(0.96);
+}
+
+/* Older Telegram Android WebViews may ignore interactive-widget and shrink the
+   viewport for the keyboard. Offset fixed controls by the lost height so they
+   remain in their original position underneath the overlaid keyboard. */
+.keyboard-overlay-active .bottom-nav,
+.keyboard-overlay-active .floating-create-btn,
+.keyboard-overlay-active .floating-back-btn {
+  transform: translateY(var(--keyboard-overlay-offset));
+  pointer-events: none;
 }
 
 .reschedule-box {
