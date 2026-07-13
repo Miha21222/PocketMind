@@ -5,6 +5,19 @@ All notable changes to PocketMind are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project follows [Semantic Versioning](https://semver.org/).
 
+## [1.2.1] - 2026-07-13
+
+### Fixed
+
+- Opening the mobile keyboard in Telegram no longer resizes the app and pushes
+  the bottom navigation and floating actions above the keyboard. Supporting
+  Chromium WebViews now use keyboard overlay mode, while older Telegram
+  Android WebViews retain the pre-keyboard viewport height and compensate for
+  viewport resizing.
+- Floating Back and Create controls no longer bounce while the keyboard opens.
+  Keyboard-animation offsets are applied immediately without the normal button
+  transform transition.
+
 ## [1.2.0] - 2026-07-06
 
 ### Changed
