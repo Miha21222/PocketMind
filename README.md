@@ -3,6 +3,9 @@
   <h1>PocketMind</h1>
   <p><strong>Capture tasks in a Telegram Mini App and get reminders where you already chat.</strong></p>
   <p>
+    <strong>English</strong> · <a href="README.ru.md">Русский</a> · <a href="README.uk.md">Українська</a>
+  </p>
+  <p>
     <a href="https://github.com/Miha21222/PocketMind/releases/latest">Latest release</a>
     · <a href="CHANGELOG.md">Changelog</a>
     · <a href="https://github.com/Miha21222/PocketMind/issues">Report an issue</a>
