@@ -11,13 +11,17 @@ DATA_DIR = BASE_DIR / "data"
 class Settings(BaseSettings):
     bot_token: str = ""
     database_url: str = f"sqlite+aiosqlite:///{(DATA_DIR / 'pocketmind.db').as_posix()}"
-    mini_app_url: str = "http://localhost:5173"
+    mini_app_url: str = "http://localhost:8000"
     jwt_secret: str = "change-me"
     jwt_expire_minutes: int = 60 * 24 * 7
     environment: str = "local"
     cors_allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     default_timezone: str = "Europe/Kyiv"
     scheduler_poll_interval_seconds: int = 60
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment != "local"
 
     # Feedback/bug-report submissions are relayed to topics within this forum
     # supergroup rather than DMed to an individual admin.

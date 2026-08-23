@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/static/styles.css" />
+    <title>PocketMind</title>
+  </head>
+  <body>
+    <div class="tg-gate">
+      <div class="tg-gate-card">
+        <img class="tg-gate-logo" src="/static/logo.png" alt="PocketMind" />
+        <h1 class="tg-gate-title">Open PocketMind in Telegram</h1>
+        <p class="tg-gate-subtitle" id="gate-status">Authorizing…</p>
+      </div>
+    </div>
+    <script type="application/json" id="launch-next">
+      {{ next_path|tojson }}
+    </script>
+    <script>
+      (async () => {
+        const init =
+          window.Telegram?.WebApp?.initData ||
+          new URLSearchParams(location.search).get("tgWebAppData");
+        if (!init) {
+          document.querySelector("#gate-status").textContent =
+            "Please open this app from Telegram.";
+          return;
+        }
+        try {
+          const r = await fetch("/web-auth/telegram", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ init_data: init }),
+          });
+          if (!r.ok) throw new Error();
+          location.replace(
+            JSON.parse(document.querySelector("#launch-next").textContent),
+          );
+        } catch {
+          document.querySelector("#gate-status").textContent =
+            "Authorization failed. Please reopen from Telegram.";
+        }
+      })();
+    </script>
+  </body>
+</html>

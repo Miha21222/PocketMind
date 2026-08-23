@@ -1,3 +1,4 @@
+---
 # PocketMind backend — single-container deployment for a VPS (e.g. Hostinger)
 # behind a Cloudflare Tunnel. This is the only compose file; the frontend is a
 # separate entity built and served by GitHub Pages.
@@ -13,35 +14,37 @@
 #
 # Requires one repo-root .env file. Docker Compose reads it for substitution,
 # the backend imports it via env_file, and the frontend Vite config now reads
-# the same root file too. In Cloudflare Zero Trust the tunnel hostname
-# (api.<your-domain>) Service must point at http://backend:8000.
+# the same root file too. Set TUNNEL_TOKEN in .env for a named Cloudflare
+# Tunnel; configure its public hostname Service as http://backend:8000.
 services:
-  backend:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
-    image: pocketmind-backend:latest
+    image: pocketmind-app:latest
     env_file:
       - .env
     environment:
       DATABASE_URL: sqlite+aiosqlite:////app/data/pocketmind.db
     # Reachable only inside the compose network (by cloudflared), never on the
-    # public host. The image's HEALTHCHECK drives the service_healthy gate below.
+    # public host. The image health check controls readiness.
     expose:
       - "8000"
     volumes:
       - pocketmind_data:/app/data
+    networks:
+      default:
+        aliases:
+          - backend
     restart: unless-stopped
 
-  # Cloudflare Tunnel connector. Set TUNNEL_TOKEN in .env (the long "eyJ..."
-  # connector token from the Zero Trust dashboard, NOT the tunnel UUID).
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    image: cloudflare/cloudflared:2026.8.2
     command: tunnel --no-autoupdate run
     environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?TUNNEL_TOKEN is required}
     depends_on:
-      backend:
+      app:
         condition: service_healthy
     restart: unless-stopped
 

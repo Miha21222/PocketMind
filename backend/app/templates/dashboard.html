@@ -1,0 +1,14 @@
+{% extends 'base.html' %}{% block content %}
+<section class="grid-section dashboard">
+  <div class="filter-group-card">
+    <div class="section-card-header"><h2>Dashboard</h2></div>
+  </div>
+  {% if tasks %}
+  <div class="schedule-list">
+    {% for task in tasks %}{% include '_task_card.html' %}{% endfor %}
+  </div>
+  {% else %}
+  <div class="dashboard-empty"><p>No tasks yet</p></div>
+  {% endif %}
+</section>
+{% endblock %}

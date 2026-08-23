@@ -1,0 +1,52 @@
+{% extends 'base.html' %}{% block content %}
+<section class="task-detail-card">
+  <div class="task-detail-heading">
+    <h2>{{ task.title }}</h2>
+    <span class="status {{ task.status.value }}">{{ task.status.value }}</span>
+  </div>
+  {% if task.description %}
+  <p class="task-detail-description">{{ task.description }}</p>
+  {% endif %}
+  <dl class="task-detail-meta">
+    <div>
+      <dt>Type</dt>
+      <dd>{{ task.type.value }}</dd>
+    </div>
+    {% if task.deadline_at %}
+    <div>
+      <dt>Deadline</dt>
+      <dd>{{ task.deadline_at.strftime('%Y-%m-%d') }}</dd>
+    </div>
+    {% endif %}
+  </dl>
+  <div class="task-actions">
+    <a class="link-btn ghost" href="/tasks/{{ task.client_task_id }}/edit"
+      >Edit</a
+    >{% if task.status.value not in ['done','cancelled'] %}
+    <form method="post" action="/tasks/{{ task.client_task_id }}/complete">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}" /><button
+        class="success"
+      >
+        Done
+      </button>
+    </form>
+    <form method="post" action="/tasks/{{ task.client_task_id }}/cancel">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}" /><button
+        class="ghost"
+        data-confirm="Cancel this task?"
+      >
+        Cancel
+      </button>
+    </form>
+    <form method="post" action="/tasks/{{ task.client_task_id }}/delete">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}" /><button
+        class="danger"
+        data-confirm="Delete this task?"
+      >
+        Delete
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

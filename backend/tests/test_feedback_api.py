@@ -17,9 +17,6 @@ TEST_DB_PATH = ROOT_DIR / ".tmp_feedback_api_test.db"
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{TEST_DB_PATH.as_posix()}"
 os.environ["ENVIRONMENT"] = "local"
 os.environ["JWT_SECRET"] = "test-secret"
-# Force-disable the notifier regardless of a real BOT_TOKEN in the developer's
-# local .env — these tests must never send real messages to the live Telegram
-# group, only exercise the "gracefully skip" path.
 os.environ["BOT_TOKEN"] = ""
 
 from app.api.v1.feedback import SCREENSHOT_DIR
@@ -89,10 +86,13 @@ class FeedbackApiTests(unittest.TestCase):
 
         async def fetch() -> Feedback | None:
             async with SessionLocal() as db:
-                return await db.scalar(select(Feedback).where(Feedback.id == feedback_id))
+                return await db.scalar(
+                    select(Feedback).where(Feedback.id == feedback_id)
+                )
 
         record = asyncio.run(fetch())
         self.assertIsNotNone(record)
+        assert record is not None
         self.assertEqual(record.user_id, self.user_id)
         self.assertEqual(record.kind, FeedbackKind.rating)
         self.assertEqual(record.rating, 5)
@@ -110,10 +110,13 @@ class FeedbackApiTests(unittest.TestCase):
 
         async def fetch() -> Feedback | None:
             async with SessionLocal() as db:
-                return await db.scalar(select(Feedback).where(Feedback.id == feedback_id))
+                return await db.scalar(
+                    select(Feedback).where(Feedback.id == feedback_id)
+                )
 
         record = asyncio.run(fetch())
         self.assertIsNotNone(record)
+        assert record is not None
         self.assertEqual(record.kind, FeedbackKind.bug)
         self.assertIsNone(record.rating)
         self.assertEqual(record.message, "The delete button does nothing")
@@ -150,10 +153,15 @@ class FeedbackApiTests(unittest.TestCase):
 
         async def fetch() -> Feedback | None:
             async with SessionLocal() as db:
-                return await db.scalar(select(Feedback).where(Feedback.id == feedback_id))
+                return await db.scalar(
+                    select(Feedback).where(Feedback.id == feedback_id)
+                )
 
         record = asyncio.run(fetch())
+        self.assertIsNotNone(record)
+        assert record is not None
         self.assertIsNotNone(record.screenshot_path)
+        assert record.screenshot_path is not None
         self.assertTrue(Path(record.screenshot_path).exists())
         self.assertEqual(Path(record.screenshot_path).read_bytes(), FAKE_IMAGE_BYTES)
 

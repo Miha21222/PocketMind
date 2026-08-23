@@ -12,7 +12,7 @@ backend/.npm-cache/
 backend/.appdata/
 backend/.localappdata/
 backend/.xdgdata/
-.tmp_sync_api_test.db
+.tmp_*_test.db
 frontend/.test-dist/
 .sofa/credentials.json
 .codegraph/

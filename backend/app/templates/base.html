@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="{{ preferences.language if preferences else 'en' }}">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PocketMind</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <div class="header-top-row">
+          <a href="/"
+            ><img class="brand-logo" src="/static/logo.png" alt="PocketMind"
+          /></a>
+          <h1 class="header-page-title">PocketMind</h1>
+          <a class="lang-switch-btn ghost" href="/settings"
+            >{{ preferences.language|upper if preferences else 'EN' }}</a
+          >
+        </div>
+      </header>
+      <main class="app-content">
+        {% if message %}
+        <p class="toast toast-success">{{ message }}</p>
+        {% endif %}{% block content %}{% endblock %}
+      </main>
+      <a class="floating-create-btn" href="/tasks/new" aria-label="New task"
+        >+</a
+      >
+      <nav class="bottom-nav">
+        <a href="/" class="{% if request.url.path == '/' %}active{% endif %}"
+          >⌂</a
+        ><a
+          href="/tasks"
+          class="{% if request.url.path.startswith('/tasks') %}active{% endif %}"
+          >☷</a
+        ><a
+          href="/settings"
+          class="{% if request.url.path.startswith('/settings') %}active{% endif %}"
+          >⚙</a
+        >
+      </nav>
+    </div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
