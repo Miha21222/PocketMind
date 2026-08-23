@@ -1,0 +1,8 @@
+---
+# Local Docker Desktop validation only. Keep production networking unchanged.
+services:
+  app:
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      ENVIRONMENT: production

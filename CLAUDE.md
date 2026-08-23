@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Orientation
 
-`CONTEXT.md` is the authoritative project map (architecture, key files, data/sync model, guardrails). Read it before any non-trivial change. `README.md` covers run/deploy. This file is the quick command + mental-model reference; when it conflicts with `CONTEXT.md` or live source, those win.
+`AGENTS.md` is the repository-wide contributor policy; this file is the engineering map, commands, and architecture guardrails. `README.md` and its localizations are the public product and run/deploy guides. Live source wins on conflict.
 
 Shell is PowerShell on Windows. Use `npm.cmd` (not `npm`) for frontend commands.
 
@@ -59,8 +59,8 @@ docker compose up -d --build
 PocketMind is a Telegram Mini App + bot, intentionally **local-first**:
 
 - **Frontend owns full task state.** The React app stores complete tasks in browser `localStorage` (key `pocketmind.tasks.v2`). `frontend/src/api/tasks.ts` is a compatibility facade that delegates to `localTaskRepository.ts` / `localTasks.ts`, **not** to backend CRUD. Do not reintroduce backend-owned task CRUD for UI convenience.
-- **Backend is a sync + reminder service, not the source of truth.** It validates Telegram identity, stores only the *reminder-relevant subset* of each task, sends reminders, and records bot-originated changes for the frontend to merge later. Active routers live under `/api/v1`: `auth`, `sync`, `voice` (`backend/app/api/v1/__init__.py`). `/health` is the readiness probe.
-- **Settings are client-only.** App language, timezone, reminder defaults, and snooze live in `localStorage` (`pocketmind.settings.v1`, via `features/settings/localSettings.ts`) and never sync — there is no settings endpoint. The three reminder-shaping values (timezone, language, snooze) ride along with each task's sync payload as a snapshot (`reminder_timezone`/`reminder_language`/`snooze_minutes`), so the backend computes/fires reminders without holding any user settings. Changing a setting is a pure local write (no failure path) and triggers a task re-sync to propagate the new snapshot.
+- **Backend is a sync + reminder service, not the source of truth.** It validates Telegram identity, stores only the *reminder-relevant subset* of each task, sends reminders, accepts voice transcription and feedback, and records bot-originated changes for the frontend to merge later. Active routers live under `/api/v1`: `auth`, `sync`, `voice`, `feedback` (`backend/app/api/v1/__init__.py`). `/health` is the readiness probe.
+- **Preferences are server-owned; task state stays local-first.** `UserPreferences` stores language, timezone, reminder defaults, snooze, and haptics for the web application. The Telegram Mini App may retain a local cache in `pocketmind.settings.v1`, but the backend is authoritative for preferences. Reminder-shaping fields also remain on each synced task as a snapshot so reminder processing is self-contained.
 - **Backend runs as three separate processes** sharing one SQLite file via `DATABASE_URL`: API (`uvicorn app.main:app`), bot (`python -m app.bot.main`), scheduler (`python -m app.scheduler.worker`). They are independent; a change touching reminders/sync usually affects more than one.
 
 Sync flow: user edits locally → written to `localStorage` → reminder fields pushed to `/api/v1/sync/*` → on app start frontend bootstraps from backend and merges bot/scheduler changes back. Backend unavailability must not block local editing.
@@ -68,7 +68,7 @@ Sync flow: user edits locally → written to `localStorage` → reminder fields 
 ### Identity / id rules (easy to get wrong)
 
 - `client_task_id` is a **string**, unique per user, and is the bridge between a local task and its backend row. Mini App task URLs use it. Keep task ids string-based across frontend and sync contracts.
-- Bot callback payloads (done/snooze) still use the internal **numeric** `Task.id`. Callback ids and frontend route ids are **not** interchangeable.
+- Bot snooze callback payloads use the internal **numeric** `Task.id`; task completion is frontend-only. Callback ids and frontend route ids are **not** interchangeable.
 - Merge rule: newer `updated_at` wins for reminder fields; deletes are soft (`deleted_at`). Sync code normalizes datetimes to UTC before comparing — SQLite datetime handling is a known footgun, preserve that normalization (`backend/app/services/task_sync_service.py`).
 
 ## Deployment notes
@@ -81,7 +81,7 @@ Sync flow: user edits locally → written to `localStorage` → reminder fields 
 - Use Alembic for all schema changes.
 - Reuse existing modules before adding abstractions; preserve sync/auth/reminder/bot-callback contracts unless the task explicitly changes them.
 - Add focused tests when touching sync, auth, reminder scheduling, bot callbacks, or repository cleanup boundaries.
-- `docs/archive/` is history only — don't treat it as current instruction when it conflicts with `CONTEXT.md` or source.
+- Archived plans and changelog entries are history only — don't treat them as current instruction when they conflict with this file, `AGENTS.md`, or source.
 
 ## Git workflow
 

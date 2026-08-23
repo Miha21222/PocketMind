@@ -18,6 +18,7 @@ TEST_DB_PATH = ROOT_DIR / ".tmp_sync_api_test.db"
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{TEST_DB_PATH.as_posix()}"
 os.environ["ENVIRONMENT"] = "local"
 os.environ["JWT_SECRET"] = "test-secret"
+os.environ["BOT_TOKEN"] = ""
 
 from app.core.security import create_access_token
 from app.db.base import Base
@@ -81,7 +82,9 @@ class SyncApiTests(unittest.TestCase):
             "deleted_at": None,
         }
 
-        response = self.client.put("/api/v1/sync/tasks/local-1", json=payload, headers=self.headers)
+        response = self.client.put(
+            "/api/v1/sync/tasks/local-1", json=payload, headers=self.headers
+        )
 
         self.assertEqual(response.status_code, 200)
         body = response.json()
@@ -111,10 +114,14 @@ class SyncApiTests(unittest.TestCase):
             "updated_at": "2026-06-15T09:00:00Z",
             "deleted_at": None,
         }
-        put_response = self.client.put("/api/v1/sync/tasks/local-1", json=payload, headers=self.headers)
+        put_response = self.client.put(
+            "/api/v1/sync/tasks/local-1", json=payload, headers=self.headers
+        )
         self.assertEqual(put_response.status_code, 200)
 
-        delete_response = self.client.delete("/api/v1/sync/tasks/local-1", headers=self.headers)
+        delete_response = self.client.delete(
+            "/api/v1/sync/tasks/local-1", headers=self.headers
+        )
 
         self.assertEqual(delete_response.status_code, 200)
         body = delete_response.json()
@@ -125,7 +132,9 @@ class SyncApiTests(unittest.TestCase):
         self.assertIsNotNone(body["task"]["cancelled_at"])
 
     def test_delete_sync_task_missing_returns_404(self) -> None:
-        response = self.client.delete("/api/v1/sync/tasks/missing-task", headers=self.headers)
+        response = self.client.delete(
+            "/api/v1/sync/tasks/missing-task", headers=self.headers
+        )
         self.assertEqual(response.status_code, 404)
 
     def test_stale_sync_update_is_ignored(self) -> None:
@@ -149,17 +158,25 @@ class SyncApiTests(unittest.TestCase):
             "updated_at": "2026-06-15T10:00:00Z",
         }
 
-        current = self.client.put("/api/v1/sync/tasks/local-2", json=current_payload, headers=self.headers)
+        current = self.client.put(
+            "/api/v1/sync/tasks/local-2", json=current_payload, headers=self.headers
+        )
         self.assertEqual(current.status_code, 200)
 
-        stale = self.client.put("/api/v1/sync/tasks/local-2", json=stale_payload, headers=self.headers)
+        stale = self.client.put(
+            "/api/v1/sync/tasks/local-2", json=stale_payload, headers=self.headers
+        )
         self.assertEqual(stale.status_code, 200)
         stale_body = stale.json()
         self.assertFalse(stale_body["applied"])
         self.assertEqual(stale_body["task"]["title"], "Newest title")
 
-        since = datetime(2026, 6, 15, 10, 1, tzinfo=UTC).isoformat().replace("+00:00", "Z")
-        changes = self.client.get(f"/api/v1/sync/changes?since={since}", headers=self.headers)
+        since = (
+            datetime(2026, 6, 15, 10, 1, tzinfo=UTC).isoformat().replace("+00:00", "Z")
+        )
+        changes = self.client.get(
+            f"/api/v1/sync/changes?since={since}", headers=self.headers
+        )
         self.assertEqual(changes.status_code, 200)
         change_items = changes.json()["items"]
         self.assertEqual(len(change_items), 1)
@@ -221,7 +238,9 @@ class SyncApiTests(unittest.TestCase):
             "deleted_at": None,
         }
 
-        response = self.client.put("/api/v1/sync/tasks/overdue-deadline-1", json=payload, headers=self.headers)
+        response = self.client.put(
+            "/api/v1/sync/tasks/overdue-deadline-1", json=payload, headers=self.headers
+        )
         self.assertEqual(response.status_code, 200)
         task = response.json()["task"]
         self.assertEqual(task["status"], "overdue")
@@ -247,7 +266,9 @@ class SyncApiTests(unittest.TestCase):
             "deleted_at": None,
         }
 
-        response = self.client.put("/api/v1/sync/tasks/quick-overdue-1", json=payload, headers=self.headers)
+        response = self.client.put(
+            "/api/v1/sync/tasks/quick-overdue-1", json=payload, headers=self.headers
+        )
         self.assertEqual(response.status_code, 200)
         task = response.json()["task"]
         self.assertEqual(task["status"], "active")
@@ -269,7 +290,9 @@ class SyncApiTests(unittest.TestCase):
             "deleted_at": None,
         }
 
-        response = self.client.put("/api/v1/sync/tasks/legacy-status-1", json=payload, headers=self.headers)
+        response = self.client.put(
+            "/api/v1/sync/tasks/legacy-status-1", json=payload, headers=self.headers
+        )
         self.assertEqual(response.status_code, 422)
 
     def test_due_task_query_marks_past_deadline_task_overdue_and_skips_it(self) -> None:
@@ -294,7 +317,7 @@ class SyncApiTests(unittest.TestCase):
 
                 due_tasks = await get_due_tasks(db)
                 await db.refresh(task)
-                return [item.client_task_id for item in due_tasks], task
+                return [item.client_task_id or "" for item in due_tasks], task
 
         due_ids, task = asyncio.run(exercise())
         self.assertEqual(due_ids, [])
@@ -305,9 +328,15 @@ class SyncApiTests(unittest.TestCase):
     def _reminder_logs_for_client_task(self, client_task_id: str) -> list[ReminderLog]:
         async def fetch() -> list[ReminderLog]:
             async with SessionLocal() as db:
-                task = await db.scalar(select(Task).where(Task.client_task_id == client_task_id))
+                task = await db.scalar(
+                    select(Task).where(Task.client_task_id == client_task_id)
+                )
                 assert task is not None
-                logs = (await db.scalars(select(ReminderLog).where(ReminderLog.task_id == task.id))).all()
+                logs = (
+                    await db.scalars(
+                        select(ReminderLog).where(ReminderLog.task_id == task.id)
+                    )
+                ).all()
                 return list(logs)
 
         return asyncio.run(fetch())
@@ -328,7 +357,9 @@ class SyncApiTests(unittest.TestCase):
             "deleted_at": None,
         }
 
-        response = self.client.put("/api/v1/sync/tasks/pending-log-1", json=payload, headers=self.headers)
+        response = self.client.put(
+            "/api/v1/sync/tasks/pending-log-1", json=payload, headers=self.headers
+        )
         self.assertEqual(response.status_code, 200)
         remind_at = response.json()["task"]["remind_at"]
         self.assertIsNotNone(remind_at)
@@ -360,7 +391,11 @@ class SyncApiTests(unittest.TestCase):
         self.assertEqual(first.status_code, 200)
         second = self.client.put(
             "/api/v1/sync/tasks/pending-log-2",
-            json={**base, "reminder_interval_hours": 6, "updated_at": "2026-06-15T10:00:00Z"},
+            json={
+                **base,
+                "reminder_interval_hours": 6,
+                "updated_at": "2026-06-15T10:00:00Z",
+            },
             headers=self.headers,
         )
         self.assertEqual(second.status_code, 200)
@@ -368,7 +403,9 @@ class SyncApiTests(unittest.TestCase):
         logs = self._reminder_logs_for_client_task("pending-log-2")
         self.assertEqual(len(logs), 2)
         statuses = sorted(log.status for log in logs)
-        self.assertEqual(statuses, sorted([ReminderStatus.cancelled, ReminderStatus.pending]))
+        self.assertEqual(
+            statuses, sorted([ReminderStatus.cancelled, ReminderStatus.pending])
+        )
 
     def test_delete_sync_task_cancels_pending_reminder_log(self) -> None:
         payload = {
@@ -385,10 +422,14 @@ class SyncApiTests(unittest.TestCase):
             "updated_at": "2026-06-15T09:00:00Z",
             "deleted_at": None,
         }
-        put_response = self.client.put("/api/v1/sync/tasks/pending-log-3", json=payload, headers=self.headers)
+        put_response = self.client.put(
+            "/api/v1/sync/tasks/pending-log-3", json=payload, headers=self.headers
+        )
         self.assertEqual(put_response.status_code, 200)
 
-        delete_response = self.client.delete("/api/v1/sync/tasks/pending-log-3", headers=self.headers)
+        delete_response = self.client.delete(
+            "/api/v1/sync/tasks/pending-log-3", headers=self.headers
+        )
         self.assertEqual(delete_response.status_code, 200)
 
         logs = self._reminder_logs_for_client_task("pending-log-3")
@@ -416,7 +457,9 @@ class SyncApiTests(unittest.TestCase):
             ]
         }
 
-        response = self.client.post("/api/v1/sync/batch", json=payload, headers=self.headers)
+        response = self.client.post(
+            "/api/v1/sync/batch", json=payload, headers=self.headers
+        )
         self.assertEqual(response.status_code, 200)
 
         logs = self._reminder_logs_for_client_task("pending-log-batch-1")

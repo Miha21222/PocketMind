@@ -18,18 +18,27 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # Batch mode so SQLite (which cannot ALTER to add constraints) applies these
-    # via copy-and-move; on Postgres it emits plain ALTER statements.
+    # Additive operations work directly on SQLite. Keep the table rebuild limited
+    # to the unique constraint: batching all operations together causes Alembic's
+    # SQLite column-order resolver to find a circular dependency.
+    op.add_column(
+        "tasks", sa.Column("client_task_id", sa.String(length=64), nullable=True)
+    )
+    op.add_column(
+        "tasks", sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True)
+    )
+    op.create_index(
+        "ix_tasks_client_task_id", "tasks", ["client_task_id"], unique=False
+    )
     with op.batch_alter_table("tasks", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("client_task_id", sa.String(length=64), nullable=True))
-        batch_op.add_column(sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True))
-        batch_op.create_index("ix_tasks_client_task_id", ["client_task_id"], unique=False)
-        batch_op.create_unique_constraint("uq_tasks_user_client_task_id", ["user_id", "client_task_id"])
+        batch_op.create_unique_constraint(
+            "uq_tasks_user_client_task_id", ["user_id", "client_task_id"]
+        )
 
 
 def downgrade() -> None:
     with op.batch_alter_table("tasks", schema=None) as batch_op:
         batch_op.drop_constraint("uq_tasks_user_client_task_id", type_="unique")
-        batch_op.drop_index("ix_tasks_client_task_id")
-        batch_op.drop_column("deleted_at")
-        batch_op.drop_column("client_task_id")
+    op.drop_index("ix_tasks_client_task_id", table_name="tasks")
+    op.drop_column("tasks", "deleted_at")
+    op.drop_column("tasks", "client_task_id")

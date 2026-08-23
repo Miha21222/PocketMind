@@ -1,0 +1,72 @@
+{% extends 'base.html' %}{% block content %}
+<form class="task-form" method="post">
+  <input type="hidden" name="csrf" value="{{ csrf_token }}" /><label
+    >Language<select name="language">
+      {% for option in ['en','ru','uk'] %}
+      <option
+        value="{{ option }}"
+        {%
+        if
+        preferences.language=""
+        ="option"
+        %}selected{%
+        endif
+        %}
+      >
+        {{ option|upper }}
+      </option>
+      {% endfor %}
+    </select></label
+  ><label
+    >Timezone<input name="timezone" value="{{ preferences.timezone }}" /></label
+  ><label
+    >Default snooze<select name="snooze_minutes">
+      {% for value in [5,10,15,20,30,45,60,90,120] %}
+      <option
+        value="{{ value }}"
+        {%
+        if
+        preferences.snooze_minutes=""
+        ="value"
+        %}selected{%
+        endif
+        %}
+      >
+        {{ value }}
+      </option>
+      {% endfor %}
+    </select></label
+  ><label
+    >Quick delay<select name="quick_delay_minutes">
+      {% for value in [5,10,15,20,30,45,60,90,120] %}
+      <option
+        value="{{ value }}"
+        {%
+        if
+        preferences.quick_delay_minutes=""
+        ="value"
+        %}selected{%
+        endif
+        %}
+      >
+        {{ value }}
+      </option>
+      {% endfor %}
+    </select></label
+  ><label
+    ><input
+      type="checkbox"
+      name="haptics_enabled"
+      {%
+      if
+      preferences.haptics_enabled
+      %}checked{%
+      endif
+      %}
+    />
+    Haptics</label
+  ><button>Save</button
+  ><a class="link-btn ghost" href="/settings/feedback">Feedback</a
+  ><a class="link-btn ghost" href="/settings/bug-report">Report a bug</a>
+</form>
+{% endblock %}

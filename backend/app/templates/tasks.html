@@ -1,0 +1,48 @@
+{% extends 'base.html' %}{% block content %}
+<section class="grid-section">
+  <form class="filter-group-card" method="get">
+    <label
+      >View
+      <select class="filter-select" name="view">
+        {% for option in ['active','overdue','completed','cancelled','all'] %}
+        <option
+          value="{{ option }}"
+          {%
+          if
+          view=""
+          ="option"
+          %}selected{%
+          endif
+          %}
+        >
+          {{ option }}
+        </option>
+        {% endfor %}
+      </select></label
+    ><label
+      >Type
+      <select class="filter-select" name="type">
+        <option value="all">All types</option>
+        {% for option in
+        ['quick','deadline','no_deadline','recurring','waiting'] %}
+        <option
+          value="{{ option }}"
+          {%
+          if
+          type_filter=""
+          ="option"
+          %}selected{%
+          endif
+          %}
+        >
+          {{ option }}
+        </option>
+        {% endfor %}
+      </select></label
+    ><button>Filter</button>
+  </form>
+  {% for task in tasks %}{% include '_task_card.html' %}{% else %}
+  <p class="empty">No tasks</p>
+  {% endfor %}
+</section>
+{% endblock %}

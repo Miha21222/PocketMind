@@ -1,0 +1,21 @@
+<article
+  class="task-card {% if task.status.value == 'overdue' %}overdue{% endif %}"
+>
+  <a href="/tasks/{{ task.client_task_id }}"
+    ><div class="task-title-row">
+      <h3>{{ task.title }}</h3>
+      <span class="status {{ task.status.value }}"
+        >{{ task.status.value }}</span
+      >
+    </div>
+    {% if task.description %}
+    <p class="task-card-desc">{{ task.description }}</p>
+    {% endif %}
+    <div class="task-card-footer">
+      <span class="task-type-chip">{{ task.type.value }}</span>{% if
+      task.remind_at %}<span class="task-date"
+        >{{ task.remind_at.strftime('%Y-%m-%d %H:%M') }}</span
+      >{% endif %}
+    </div></a
+  >
+</article>

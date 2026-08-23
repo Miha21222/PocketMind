@@ -19,6 +19,7 @@ TEST_DB_PATH = ROOT_DIR / ".tmp_reminder_service_test.db"
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{TEST_DB_PATH.as_posix()}"
 os.environ["ENVIRONMENT"] = "local"
 os.environ["JWT_SECRET"] = "test-secret"
+os.environ["BOT_TOKEN"] = ""
 
 from app.db.base import Base
 from app.db.session import SessionLocal, engine
@@ -37,7 +38,9 @@ async def reset_db() -> None:
 
 def make_bot() -> AsyncMock:
     bot = AsyncMock()
-    bot.send_message = AsyncMock(return_value=SimpleNamespace(chat=SimpleNamespace(id=999), message_id=111))
+    bot.send_message = AsyncMock(
+        return_value=SimpleNamespace(chat=SimpleNamespace(id=999), message_id=111)
+    )
     return bot
 
 
@@ -84,6 +87,8 @@ class ReminderServiceTests(unittest.TestCase):
             async with SessionLocal() as db:
                 task = await db.get(Task, task_id)
                 user = await db.get(User, user_id)
+                assert task is not None
+                assert user is not None
                 with patch(
                     "app.services.reminder_service.assign_next_reminder_after_send",
                     side_effect=RuntimeError("boom"),
@@ -92,7 +97,11 @@ class ReminderServiceTests(unittest.TestCase):
 
             async with SessionLocal() as verify_db:
                 refreshed = await verify_db.get(Task, task_id)
-                logs = (await verify_db.scalars(select(ReminderLog).where(ReminderLog.task_id == task_id))).all()
+                logs = (
+                    await verify_db.scalars(
+                        select(ReminderLog).where(ReminderLog.task_id == task_id)
+                    )
+                ).all()
                 due = await get_due_tasks(verify_db)
             return bot, refreshed, list(logs), due
 
@@ -103,6 +112,8 @@ class ReminderServiceTests(unittest.TestCase):
         self.assertIsNotNone(logs[0].sent_at)
         self.assertIsNotNone(logs[0].chat_id)
         self.assertIsNotNone(logs[0].message_id)
+        self.assertIsNotNone(task)
+        assert task is not None
         self.assertIsNotNone(task.last_reminded_at)
         # The literal regression check: even though Phase B (scheduling the next
         # reminder) failed, remind_at was already cleared in Phase A, so the next
@@ -112,9 +123,12 @@ class ReminderServiceTests(unittest.TestCase):
 
     def test_send_task_reminder_reuses_existing_pending_log(self) -> None:
         async def exercise():
-            user_id, task_id = await self._seed_user_and_task(client_task_id="reminder-task-2")
+            user_id, task_id = await self._seed_user_and_task(
+                client_task_id="reminder-task-2"
+            )
             async with SessionLocal() as db:
                 task = await db.get(Task, task_id)
+                assert task is not None
                 pre_log = ReminderLog(
                     task_id=task_id,
                     user_id=user_id,
@@ -130,12 +144,16 @@ class ReminderServiceTests(unittest.TestCase):
             async with SessionLocal() as db:
                 task = await db.get(Task, task_id)
                 user = await db.get(User, user_id)
+                assert task is not None
+                assert user is not None
                 await send_task_reminder(db, bot, task, user)
 
             async with SessionLocal() as verify_db:
                 logs = (
                     await verify_db.scalars(
-                        select(ReminderLog).where(ReminderLog.task_id == task_id).order_by(ReminderLog.id)
+                        select(ReminderLog)
+                        .where(ReminderLog.task_id == task_id)
+                        .order_by(ReminderLog.id)
                     )
                 ).all()
             return pre_log_id, list(logs)
@@ -150,15 +168,23 @@ class ReminderServiceTests(unittest.TestCase):
 
     def test_send_task_reminder_ad_hoc_fallback_when_no_pending_row(self) -> None:
         async def exercise():
-            user_id, task_id = await self._seed_user_and_task(client_task_id="reminder-task-3")
+            user_id, task_id = await self._seed_user_and_task(
+                client_task_id="reminder-task-3"
+            )
             bot = make_bot()
             async with SessionLocal() as db:
                 task = await db.get(Task, task_id)
                 user = await db.get(User, user_id)
+                assert task is not None
+                assert user is not None
                 await send_task_reminder(db, bot, task, user)
 
             async with SessionLocal() as verify_db:
-                logs = (await verify_db.scalars(select(ReminderLog).where(ReminderLog.task_id == task_id))).all()
+                logs = (
+                    await verify_db.scalars(
+                        select(ReminderLog).where(ReminderLog.task_id == task_id)
+                    )
+                ).all()
             return bot, list(logs)
 
         bot, logs = asyncio.run(exercise())
@@ -166,7 +192,9 @@ class ReminderServiceTests(unittest.TestCase):
         sent_logs = [log for log in logs if log.status == ReminderStatus.sent]
         self.assertEqual(len(sent_logs), 1)
 
-    def test_assign_next_reminder_after_send_handles_naive_deadline_from_sqlite(self) -> None:
+    def test_assign_next_reminder_after_send_handles_naive_deadline_from_sqlite(
+        self,
+    ) -> None:
         # SQLAlchemy + SQLite round-trips DateTime(timezone=True) columns as
         # naive datetimes, so a task loaded fresh from the DB (exactly what
         # get_due_tasks -> send_task_reminder does on every scheduler poll) can
@@ -174,7 +202,9 @@ class ReminderServiceTests(unittest.TestCase):
         # to raise "can't compare offset-naive and offset-aware datetimes"
         # inside assign_next_reminder_after_send for any deadline/waiting task
         # with a deadline set, silently failing Phase B on every send.
-        from app.services.reminder_planning_service import assign_next_reminder_after_send
+        from app.services.reminder_planning_service import (
+            assign_next_reminder_after_send,
+        )
 
         now = datetime.now(UTC)
         task = Task(
