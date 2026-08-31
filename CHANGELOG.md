@@ -5,6 +5,38 @@ All notable changes to PocketMind are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project follows [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-08-31
+
+### Added
+
+- Server-rendered web UI. The app now exposes a FastAPI-rendered web app
+  (Jinja templates, static assets) alongside the Telegram Mini App, with a
+  dashboard, task list/detail/form, settings, and migrated browser data.
+- Cookie session auth for the web surface, backed by a session store, while
+  the Telegram Mini App keeps its token-based auth.
+- Server-owned `UserPreferences`: a dedicated model and settings surface that
+  now owns user preferences server-side instead of relying on client storage.
+- Voice-to-task bot: Telegram voice messages are transcribed (Whisper) into
+  quick tasks directly from chat, with en/ru/uk responses and a 10 MB size cap.
+- Server preference sync: client-owned Mini App settings are mirrored into the
+  backend `UserPreferences` row so future bot-created tasks pick up the real
+  quick-delay/reminder defaults.
+- Reminder cleanup on task close: already-sent Telegram reminder cards are
+  deleted once a task is done, cancelled, or deleted (sync and web surfaces).
+- Russian and Ukrainian editions of the README, with a per-edition language
+  selector and section-for-section parity with the English edition.
+- Fresh dashboard and task-creation screenshots, and a legacy browser-data
+  import surface for existing local-first users.
+
+### Changed
+
+- Reshaped the README into a user-first PocketMind overview covering the
+  Telegram onboarding journey, local-first data ownership, architecture, API
+  surface, setup, validation, deployment, and privacy boundaries.
+- `docker-compose.yml` renamed the backend service `backend` -> `app` and
+  pinned `cloudflared`; added `docker-compose.local.yml` and a supervisor
+  config for the compose-run workers.
+
 ## [1.2.1] - 2026-07-13
 
 ### Fixed
