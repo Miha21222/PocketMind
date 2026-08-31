@@ -3,11 +3,9 @@ from fastapi.concurrency import run_in_threadpool
 
 from app.api.deps import get_current_user
 from app.models.user import User
-from app.services.transcription_service import transcribe_audio
+from app.services.transcription_service import MAX_AUDIO_BYTES, transcribe_audio
 
 router = APIRouter(prefix="/voice", tags=["voice"])
-
-MAX_AUDIO_BYTES = 10 * 1024 * 1024  # 10 MB
 
 
 @router.post("/transcribe")

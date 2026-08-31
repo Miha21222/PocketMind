@@ -6,9 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models.task import Task
+from app.models.task import Task, TaskStatus
 from app.models.user import User
 from app.schemas.sync import SyncBatchRequest, SyncTaskListResponse, SyncTaskUpsert, SyncTaskUpsertResponse
+from app.services.reminder_cleanup_service import cleanup_task_reminders_if_closed
 from app.services.reminder_log_service import reconcile_pending_reminder_log
 from app.services.task_sync_service import (
     apply_sync_payload,
@@ -88,6 +89,9 @@ async def upsert_sync_task(
     await reconcile_pending_reminder_log(db, task)
     await db.commit()
     await db.refresh(task)
+    # Mini App marks tasks done/cancelled through this upsert; clean up the
+    # already-sent Telegram reminder messages once the task is closed.
+    await cleanup_task_reminders_if_closed(db, task)
     return SyncTaskUpsertResponse(applied=True, task=to_sync_record(task))
 
 
@@ -105,6 +109,7 @@ async def delete_sync_task(
     await reconcile_pending_reminder_log(db, task)
     await db.commit()
     await db.refresh(task)
+    await cleanup_task_reminders_if_closed(db, task)
     return SyncTaskUpsertResponse(applied=True, task=to_sync_record(task))
 
 
@@ -114,6 +119,7 @@ async def sync_batch(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> SyncTaskListResponse:
+    closed_tasks: list[Task] = []
     for item in payload.tasks:
         existing = await _get_task_by_client_id(db, current_user.id, item.client_task_id)
         existing_updated_at = ensure_utc_datetime(existing.updated_at) if existing is not None else None
@@ -131,6 +137,10 @@ async def sync_batch(
             db.add(existing)
         apply_sync_payload(existing, payload=SyncTaskUpsert(**item.model_dump(exclude={"client_task_id"})))
         await reconcile_pending_reminder_log(db, existing)
+        if existing.status in {TaskStatus.done, TaskStatus.cancelled} or existing.deleted_at is not None:
+            closed_tasks.append(existing)
 
     await db.commit()
+    for task in closed_tasks:
+        await cleanup_task_reminders_if_closed(db, task)
     return await bootstrap_sync(db=db, current_user=current_user)

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.models.reminder_log import ReminderLog, ReminderStatus
+from app.models.task import Task, TaskStatus
 
 logger = logging.getLogger(__name__)
 
@@ -81,3 +82,12 @@ async def cleanup_task_reminder_messages(
     if cancelled_count:
         await db.commit()
     return cancelled_count
+
+
+async def cleanup_task_reminders_if_closed(
+    db: AsyncSession, task: Task, bot: Bot | None = None
+) -> int:
+    """Delete sent reminder messages once a task is done, cancelled, or deleted."""
+    if task.status not in {TaskStatus.done, TaskStatus.cancelled} and task.deleted_at is None:
+        return 0
+    return await cleanup_task_reminder_messages(db, task.id, bot=bot)

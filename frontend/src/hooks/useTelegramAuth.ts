@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { AuthUser, authWithTelegram } from "../api/auth";
 import { setAuthToken } from "../api/client";
+import { syncPreferences } from "../api/preferences";
+import { getEffectiveSettings } from "../features/settings/localSettings";
 import { getTelegramWebApp } from "../telegramWebApp";
 
 interface AuthState {
@@ -57,6 +59,10 @@ export function useTelegramAuth(): AuthState {
         }
         const auth = await authWithTelegram(initData);
         setAuthToken(auth.access_token);
+        // Backfill client-owned settings into the backend's UserPreferences row
+        // so server-side task creators (voice notes) see the real quick delay.
+        // Best-effort: a failure must not fail auth; the next launch/save retries.
+        void syncPreferences(getEffectiveSettings()).catch(() => {});
         setState({ loading: false, error: null, authenticated: true, user: auth.user });
       } catch (error) {
         setState({
