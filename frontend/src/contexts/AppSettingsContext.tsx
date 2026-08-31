@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { translations, TranslationKey } from "../i18n/translations";
 import { AppLanguage, UserSettings } from "../types/settings";
 import { getEffectiveSettings, writeStoredSettings } from "../features/settings/localSettings";
+import { syncPreferences } from "../api/preferences";
 import { TASKS_SYNC_QUERY_KEY } from "../features/tasks/cache";
 
 // Settings are client-owned and live in localStorage only — they never sync to
@@ -52,6 +53,10 @@ export function AppSettingsProvider({ children }: PropsWithChildren) {
     const persist = (next: UserSettings) => {
       setSettings(next);
       writeStoredSettings(next);
+      // Bot-created tasks (voice notes) read the backend UserPreferences row,
+      // so mirror the client-owned values for them. Best-effort and fire-and-
+      // forget: a sync failure must never block a local settings save.
+      void syncPreferences(next).catch(() => {});
       // Tasks embed a settings snapshot when they sync; re-sync so a changed
       // value (e.g. a new timezone) propagates to already-stored tasks now
       // rather than waiting for the next app open.

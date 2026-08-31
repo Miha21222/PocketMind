@@ -10,6 +10,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+MAX_AUDIO_BYTES = 10 * 1024 * 1024  # 10 MB
+
 
 @lru_cache(maxsize=1)
 def _get_model() -> "WhisperModel":

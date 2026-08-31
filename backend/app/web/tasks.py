@@ -24,6 +24,7 @@ from app.services.task_application_service import (
     create_task,
     update_task,
 )
+from app.services.reminder_cleanup_service import cleanup_task_reminders_if_closed
 from app.services.task_sync_service import normalize_task_overdue_state
 from app.web.dependencies import (  # type: ignore[reportMissingImports]
     check_csrf,
@@ -357,4 +358,9 @@ async def task_action(
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     await db.commit()
+    # Once the task is done/cancelled/deleted, its already-sent reminder
+    # messages (Snooze/Open cards) are no longer actionable; delete them.
+    # Runs after the state commit so a Telegram outage can't roll back the
+    # task transition.
+    await cleanup_task_reminders_if_closed(db, task)
     return redirect("/tasks", "Task updated")

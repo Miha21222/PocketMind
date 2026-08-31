@@ -4,6 +4,7 @@ import re
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -21,7 +22,7 @@ from app.core.security import create_access_token
 from app.db.base import Base
 from app.db.session import SessionLocal, close_db, engine
 from app.main import app
-from app.models.task import Task, TaskStatus
+from app.models.task import Task, TaskStatus, TaskType
 from app.models.user import User
 
 
@@ -40,13 +41,28 @@ async def create_user(telegram_id: int) -> User:
         return user
 
 
-async def create_task(user_id: int, client_task_id: str) -> Task:
+async def create_task(user_id: int, client_task_id: str, type: TaskType | None = None) -> Task:
     async with SessionLocal() as db:
-        task = Task(user_id=user_id, client_task_id=client_task_id, title="Web task")
+        task = Task(
+            user_id=user_id,
+            client_task_id=client_task_id,
+            title="Web task",
+            type=type or TaskType.quick,
+        )
         db.add(task)
         await db.commit()
         await db.refresh(task)
         return task
+
+
+async def set_recurring(task_id: int) -> None:
+    async with SessionLocal() as db:
+        task = await db.get(Task, task_id)
+        assert task is not None
+        task.type = TaskType.recurring
+        task.recurrence_rule = "RRULE:FREQ=DAILY"
+        task.reminder_time_local = "09:00"
+        await db.commit()
 
 
 async def fetch_task(client_task_id: str) -> Task | None:
@@ -168,3 +184,53 @@ class WebRebuildTests(unittest.TestCase):
         task = asyncio.run(fetch_task("private"))
         assert task is not None
         self.assertIsNone(task.deleted_at)
+
+    def test_task_actions_cleanup_sent_reminder_messages(self):
+        csrf = self.authenticate_web_user()
+        assert csrf
+        asyncio.run(create_task(self.user.id, "cleanup-done"))
+        asyncio.run(create_task(self.user.id, "cleanup-cancel"))
+        asyncio.run(create_task(self.user.id, "cleanup-delete"))
+        with patch(
+            "app.web.tasks.cleanup_task_reminders_if_closed",
+            new=AsyncMock(),
+        ) as cleanup:
+            for client_task_id, action in (
+                ("cleanup-done", "complete"),
+                ("cleanup-cancel", "cancel"),
+                ("cleanup-delete", "delete"),
+            ):
+                response = self.client.post(
+                    f"/tasks/{client_task_id}/{action}",
+                    data={"csrf": csrf},
+                    follow_redirects=False,
+                )
+                self.assertEqual(response.status_code, 303, action)
+            expected_ids = {
+                asyncio.run(fetch_task(ctid)).id for ctid in
+                ("cleanup-done", "cleanup-cancel", "cleanup-delete")
+            }
+            actual_ids = {call.args[1].id for call in cleanup.call_args_list}
+            self.assertEqual(actual_ids, expected_ids)
+
+    def test_recurring_completion_keeps_reminder_messages(self):
+        # Completing a recurring occurrence advances the next reminder instead
+        # of closing the task, so its sent reminder messages must survive.
+        csrf = self.authenticate_web_user()
+        assert csrf
+        task = asyncio.run(create_task(self.user.id, "recurring-stays"))
+        asyncio.run(set_recurring(task.id))
+        with patch(
+            "app.services.reminder_cleanup_service.cleanup_task_reminder_messages",
+            new=AsyncMock(return_value=0),
+        ) as delete:
+            response = self.client.post(
+                "/tasks/recurring-stays/complete",
+                data={"csrf": csrf},
+                follow_redirects=False,
+            )
+            self.assertEqual(response.status_code, 303)
+            delete.assert_not_awaited()
+        refreshed = asyncio.run(fetch_task("recurring-stays"))
+        assert refreshed is not None
+        self.assertEqual(refreshed.status, TaskStatus.active)

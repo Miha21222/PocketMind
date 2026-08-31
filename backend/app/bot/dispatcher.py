@@ -1,6 +1,6 @@
 from aiogram import Bot, Dispatcher
 
-from app.bot.handlers import callbacks, help as help_handler, start
+from app.bot.handlers import callbacks, help as help_handler, start, voice
 from app.core.config import get_settings
 
 
@@ -16,6 +16,7 @@ def _build_dispatcher() -> Dispatcher:
     dp.include_router(start.router)
     dp.include_router(help_handler.router)
     dp.include_router(callbacks.router)
+    dp.include_router(voice.router)
     return dp
 
 

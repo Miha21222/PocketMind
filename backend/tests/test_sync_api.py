@@ -465,3 +465,99 @@ class SyncApiTests(unittest.TestCase):
         logs = self._reminder_logs_for_client_task("pending-log-batch-1")
         self.assertEqual(len(logs), 1)
         self.assertEqual(logs[0].status, ReminderStatus.pending)
+
+    def _base_payload(self, **overrides) -> dict:
+        payload = {
+            "title": "Sync cleanup task",
+            "type": "no_deadline",
+            "status": "active",
+            "description": None,
+            "deadline_at": None,
+            "remind_at": None,
+            "reminder_mode": "none",
+            "reminder_time_local": None,
+            "reminder_interval_hours": None,
+            "recurrence_rule": None,
+            "updated_at": "2026-06-15T09:00:00Z",
+            "deleted_at": None,
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_put_sync_task_cleans_up_sent_reminder_when_done(self) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        self.client.put(
+            "/api/v1/sync/tasks/cleanup-done",
+            json=self._base_payload(),
+            headers=self.headers,
+        )
+        with patch(
+            "app.api.v1.sync.cleanup_task_reminders_if_closed",
+            new=AsyncMock(return_value=1),
+        ) as cleanup:
+            response = self.client.put(
+                "/api/v1/sync/tasks/cleanup-done",
+                json=self._base_payload(
+                    status="done", remind_at=None, updated_at="2026-06-15T10:00:00Z"
+                ),
+                headers=self.headers,
+            )
+        self.assertEqual(response.status_code, 200)
+        cleanup.assert_awaited_once()
+
+    def test_put_sync_task_does_not_cleanup_while_active(self) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        with patch(
+            "app.api.v1.sync.cleanup_task_reminders_if_closed",
+            new=AsyncMock(return_value=0),
+        ) as cleanup:
+            response = self.client.put(
+                "/api/v1/sync/tasks/cleanup-active",
+                json=self._base_payload(),
+                headers=self.headers,
+            )
+        self.assertEqual(response.status_code, 200)
+        cleanup.assert_awaited_once()
+
+    def test_delete_sync_task_cleans_up_sent_reminder(self) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        self.client.put(
+            "/api/v1/sync/tasks/cleanup-delete",
+            json=self._base_payload(),
+            headers=self.headers,
+        )
+        with patch(
+            "app.api.v1.sync.cleanup_task_reminders_if_closed",
+            new=AsyncMock(return_value=1),
+        ) as cleanup:
+            response = self.client.delete(
+                "/api/v1/sync/tasks/cleanup-delete", headers=self.headers
+            )
+        self.assertEqual(response.status_code, 200)
+        cleanup.assert_awaited_once()
+
+    def test_sync_batch_cleans_up_sent_reminder_for_closed_task(self) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        with patch(
+            "app.api.v1.sync.cleanup_task_reminders_if_closed",
+            new=AsyncMock(return_value=1),
+        ) as cleanup:
+            response = self.client.post(
+                "/api/v1/sync/batch",
+                json={
+                    "tasks": [
+                        self._base_payload(
+                            client_task_id="cleanup-batch",
+                            status="cancelled",
+                            remind_at=None,
+                        )
+                    ]
+                },
+                headers=self.headers,
+            )
+        self.assertEqual(response.status_code, 200)
+        cleanup.assert_awaited_once()

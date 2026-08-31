@@ -63,6 +63,15 @@ class PreferenceUpdateCommand(BaseModel):
     haptics_enabled: bool | None = None
 
 
+class PreferenceSyncCommand(BaseModel):
+    """Client-owned settings mirrored to the backend for future bot-created tasks."""
+
+    language: str | None = None
+    timezone: str | None = None
+    default_snooze_minutes: int | None = Field(default=None, ge=5, le=240)
+    default_quick_delay_minutes: int | None = Field(default=None, ge=5, le=240)
+
+
 class TaskSaveCommand(BaseModel):
     """Fully resolved task values used only after an ownership-scoped lookup."""
 
@@ -319,6 +328,34 @@ async def delete_task(db: AsyncSession, user: User, client_task_id: str) -> Task
     clear_task_reminder_state(task)
     await reconcile_pending_reminder_log(db, task)
     return task
+
+
+async def sync_preferences(
+    db: AsyncSession, user: User, command: PreferenceSyncCommand
+) -> UserPreferences:
+    """Mirror client-owned Mini App settings into the server preference row.
+
+    Unlike ``update_preferences``, this never recomputes existing task timing:
+    it exists so future bot-created tasks (e.g. voice notes) pick up the user's
+    configured quick-delay/reminder defaults without rescheduling the tasks the
+    Mini App already owns.
+    """
+    preferences = await get_preferences(db, user)
+    if command.language is not None:
+        preferences.language = (
+            command.language if command.language in {"en", "ru", "uk"} else "en"
+        )
+    if command.timezone is not None:
+        preferences.timezone = normalize_timezone(command.timezone)
+    if command.default_snooze_minutes is not None:
+        preferences.snooze_minutes = clamp_int(
+            command.default_snooze_minutes, 15, 5, 240
+        )
+    if command.default_quick_delay_minutes is not None:
+        preferences.quick_delay_minutes = clamp_int(
+            command.default_quick_delay_minutes, 10, 5, 240
+        )
+    return preferences
 
 
 async def update_preferences(

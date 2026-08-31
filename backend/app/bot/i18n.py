@@ -27,6 +27,10 @@ BOT_I18N: dict[str, dict[str, str]] = {
         "cb_already_handled": "This reminder is already handled",
         "cb_snoozed": "Reminder moved by {minutes} minutes",
         "cb_unknown_action": "Unknown action",
+        "voice_task_created": "🎙 Task created: {title}",
+        "voice_no_speech": "I couldn't hear any speech in the voice message. Try again?",
+        "voice_too_large": "That voice message is too long. Try a shorter one.",
+        "voice_transcribe_failed": "Sorry, I couldn't process that voice message. Try again?",
     },
     "ru": {
         "start_text": "Привет! Я помогаю держать задачи под контролем и вовремя напоминаю о них.",
@@ -53,6 +57,10 @@ BOT_I18N: dict[str, dict[str, str]] = {
         "cb_already_handled": "Это напоминание уже обработано",
         "cb_snoozed": "Напоминание перенесено на {minutes} мин",
         "cb_unknown_action": "Неизвестное действие",
+        "voice_task_created": "🎙 Задача создана: {title}",
+        "voice_no_speech": "Не удалось разобрать речь в голосовом сообщении. Попробуйте ещё раз?",
+        "voice_too_large": "Голосовое сообщение слишком длинное. Попробуйте покороче.",
+        "voice_transcribe_failed": "Не удалось обработать голосовое сообщение. Попробуйте ещё раз?",
     },
     "uk": {
         "start_text": "Привіт! Я допомагаю тримати завдання під контролем і вчасно нагадую про них.",
@@ -79,6 +87,10 @@ BOT_I18N: dict[str, dict[str, str]] = {
         "cb_already_handled": "Це нагадування вже оброблено",
         "cb_snoozed": "Нагадування перенесено на {minutes} хв",
         "cb_unknown_action": "Невідома дія",
+        "voice_task_created": "🎙 Завдання створено: {title}",
+        "voice_no_speech": "Не вдалося розібрати мову в голосовому повідомленні. Спробуйте ще раз?",
+        "voice_too_large": "Голосове повідомлення занадто довге. Спробуйте коротше.",
+        "voice_transcribe_failed": "Не вдалося обробити голосове повідомлення. Спробуйте ще раз?",
     },
 }
 
